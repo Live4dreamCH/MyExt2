@@ -13,3 +13,5 @@ constexpr u16 DataBlockOffset = 1 + 1 + 1 + InodeSize * 8;
 //定义:磁盘块号从0开始, 如组描述符的块号就为0
 //索引节点(inode)号从1开始, 如根目录的inode就为1
 //数据块号从0开始, 如根目录的目录文件就在第0块
+
+//todo:
