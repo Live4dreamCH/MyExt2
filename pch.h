@@ -14,4 +14,6 @@ constexpr u16 DataBlockOffset = 1 + 1 + 1 + InodeSize * 8;
 //索引节点(inode)号从1开始, 如根目录的inode就为1
 //数据块号从0开始, 如根目录的目录文件就在第0块
 
-//todo:
+/*todo:总
+main中的指令用正则表达式来做吧
+*/

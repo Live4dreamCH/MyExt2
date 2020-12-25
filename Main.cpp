@@ -12,53 +12,53 @@
 
 int main()
 {
-    //std::cout << sizeof(Group_Descriptor) << ' ' << sizeof(Inode) << ' ' << sizeof(BitMap);
-    MyExt2 test;
-    std::string command;
-    while (true)
-    {
-        std::cout << "root@" + test.volume_name() + ":" + test.cwd() + "$ ";
-        std::getline(std::cin, command);
+	//std::cout << sizeof(Group_Descriptor) << ' ' << sizeof(Inode) << ' ' << sizeof(BitMap);
+	MyExt2 test;
+	std::string command;
+	while (true)
+	{
+		std::cout << "root@" + test.volume_name() + ":" + test.cwd() + "$ ";
+		std::getline(std::cin, command);
 
-        if (command.find("ls") != std::string::npos) {
-            ;
-        }
-        else if (command.find("cd") != std::string::npos) {
-            ;
-        }
-        else if (command.find("mkdir") != std::string::npos) {
-            ;
-        }
-        else if (command.find("touch") != std::string::npos) {
-            ;
-        }
-        else if (command.find("rm") != std::string::npos) {
-            ;
-        }
-        else if (command.find("cat") != std::string::npos) {
-            ;
-        }
-        else if (command.find("edit") != std::string::npos) {
-            ;
-        }
-        else if (command.find("format") != std::string::npos) {
-            std::cout << "enter new volume name: ";
-            std::string vn;
-            std::getline(std::cin, vn);
-            test.format(vn);
-        }
-        else if (command.find("chmod") != std::string::npos) {
-            ;
-        }
-        else if (command.find("exit") != std::string::npos) {
-            std::cout << "OK, exit.\n";
-            break;
-        }
-        else {
-            std::cout << command << ": command not found\n";
-        }
-    }
-    return 0;
+		if (command.find("ls") != std::string::npos) {
+			;
+		}
+		else if (command.find("cd") != std::string::npos) {
+			;
+		}
+		else if (command.find("mkdir") != std::string::npos) {
+			;
+		}
+		else if (command.find("touch") != std::string::npos) {
+			;
+		}
+		else if (command.find("rm") != std::string::npos) {
+			;
+		}
+		else if (command.find("cat") != std::string::npos) {
+			;
+		}
+		else if (command.find("edit") != std::string::npos) {
+			;
+		}
+		else if (command.find("format") != std::string::npos) {
+			std::cout << "enter new volume name: ";
+			std::string vn;
+			std::getline(std::cin, vn);
+			test.format(vn);
+		}
+		else if (command.find("chmod") != std::string::npos) {
+			;
+		}
+		else if (command.find("exit") != std::string::npos) {
+			std::cout << "OK, exit.\n";
+			break;
+		}
+		else {
+			std::cout << command << ": command not found\n";
+		}
+	}
+	return 0;
 }
 
 // 运行程序: Ctrl + F5 或调试 >“开始执行(不调试)”菜单
