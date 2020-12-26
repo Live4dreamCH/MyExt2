@@ -189,8 +189,6 @@ public:
 	}
 };
 
-//todo:上次工作到此为止
-
 //组描述符, 保存文件系统的基础信息
 //sizeof(Group_Descriptor) = 512 Bytes
 struct Group_Descriptor
@@ -199,13 +197,17 @@ struct Group_Descriptor
 	u16 block_bitmap = 1;//数据块位图所在的磁盘块号
 	u16 inode_bitmap = 2;//索引结点位图的磁盘块号
 	u16 inode_table = 3;//索引结点表的起始磁盘块号
+
+	//todo:针对这几个值有一系列操作,如判零 自减等.封装它们很没意思,直接外部修改吧
 	u16 free_blocks_count;//空闲块的个数(指数据块?)
 	u16 free_inodes_count;//空闲索引结点的个数
 	u16 used_dirs_count;//目录的个数
+
 	char pad[4];//填充
 	char remain_padding[480] = { 0 };//继续填充至512字节
 
-	Group_Descriptor(char name[], u16 fb = BlockSize * 8, u16 fi = BlockSize * 8, u16 dir = 0) :free_blocks_count(fb), free_inodes_count(fi), used_dirs_count(dir)
+	Group_Descriptor(char name[], u16 fb = BlockSize * 8, u16 fi = BlockSize * 8, u16 dir = 0)
+		:free_blocks_count(fb), free_inodes_count(fi), used_dirs_count(dir)
 	{
 		for (int i = 0; i < 4; i++)
 		{
@@ -214,7 +216,7 @@ struct Group_Descriptor
 	}
 };
 
-//索引节点, 保存文件信息及位置
+//索引节点inode, 保存文件信息及位置
 //sizeof(Inode) = 64 Bytes
 struct Inode
 {
@@ -225,6 +227,7 @@ struct Inode
 	u16 i_block[8] = { 0 };//文件所占用数据块的索引表(存储数据块号)
 	char i_pad[8];//填充至64字节
 
+	//perm=permission,没词用了
 	Inode(char type = 1, char perm = 7)
 	{
 		i_mode = (type << 8) + perm;
@@ -238,36 +241,51 @@ struct Inode
 	void perm(char p) {
 		i_mode = (i_mode & (u16)0xff00) + p;
 	}
-	//更新访问时间
+	//读取时
 	void access() {
 		i_atime = time(NULL);
 	}
-	//更新修改时间
+	//修改时,size为文件新大小
 	void modify(u32 size) {
 		i_mtime = time(NULL);
 		i_size = size;
-		i_blocks = size / BlockSize;
-		if (size % BlockSize)
-			i_blocks++;
 	}
-	//设置若干块索引
-	void set_index() {
-		;
+	//删除时
+	void del() {
+		i_dtime = time(NULL);
+		i_mode = 0;
+		i_blocks = 0;
+		i_size = 0;
+		i_atime = i_ctime = i_mtime = 0;
+		for (int i = 0; i < 8; i++) {
+			i_block[i] = 0;
+		}
 	}
-	//获取若干块索引
+	//设置一个数据块索引, block是数据块号, index是第几块
+	void set_index(u16 block, u16 index) {
+		if (index < 6) {
+			i_block[index] = block;
+		}
+		else if (index < 6 + BlockSize / 2) {
+			//todo:这里需要读写文件,只有主类MyExt2才做得到,应移到那里, 下同
+		}
+		i_blocks++;
+	}
+	//获取一个数据块索引
 	u16 get_index() {
 		;
 	}
 };
 
 //目录文件内容中的一项
+//目录项不定长,解析比较麻烦
 struct DirEntry
 {
-	u16 inode = 0;
-	u16 rec_len = 7;
-	char name_len = 1;
-	char file_type = 0;
-	char name[256] = { 0 };
+	u16 inode = 0;//此目录项对应文件的inode号
+	u16 rec_len = 7;//此目录项的长度(不定长,7~261)
+	char name_len = 1;//文件名长度
+	char file_type = 0;//文件类型
+	char name[256] = { 0 };//文件名
 };
 
 //用于间接寻址的数据块内容
