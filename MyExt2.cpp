@@ -2,6 +2,8 @@
 #include "structures.cpp"
 #include <set>
 
+//文件系统的内存数据结构及操作
+//"动态的"文件系统
 class MyExt2
 {
 	DiskSim disk;
@@ -10,9 +12,12 @@ class MyExt2
 	u16 last_alloc_block = 0;//上次分配的数据块号
 	u16 current_dir = 1;//当前目录(索引结点）
 	std::string current_path = "/";//当前路径(字符串) 
-	Group_Descriptor gdcache;
+	Group_Descriptor gdcache;//组描述符的内存缓存
 public:
-	std::string cwd() const {
+	//todo:初始化要做哪些事?
+	MyExt2(){}
+
+	std::string curr_path() const {
 		return current_path;
 	}
 	void format(std::string vn = "MyExt2") {

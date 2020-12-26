@@ -3,6 +3,9 @@
 #include <ctime>
 #include <fstream>
 
+//文件系统的数据结构及其相关操作
+//硬盘上的"静态的"文件系统
+
 //用当前系统下的一个文件FS.txt, 模拟一个FS_Size大小的硬盘.
 //每次读写BlockSize大小的一块数据
 class DiskSim
@@ -56,6 +59,7 @@ public:
 	}
 
 	//从硬盘读到缓冲区,如有指针再复制过去
+	//block_num是硬盘块号, 使用数据块号时注意+DataBlockOffset
 	void read(u16 block_num, char* s = nullptr)
 	{
 		if (buf_dirty || block_num != bufpos)
@@ -75,6 +79,7 @@ public:
 	}
 
 	//将缓冲区写入硬盘; 如有指针, 先从指针写到缓冲区
+	//block_num是硬盘块号, 使用数据块号时注意+DataBlockOffset
 	void write(u16 block_num, const char* s = nullptr)
 	{
 		if (s != nullptr) {
@@ -261,24 +266,62 @@ struct Inode
 			i_block[i] = 0;
 		}
 	}
-	//设置一个数据块索引, block是数据块号, index是第几块
-	void set_index(u16 block, u16 index) {
+	//设置一个数据块索引, block是数据块号, index是第几个索引(0始), bmp是块位图
+	void set_index(u16 block, u16 index, DiskSim& dsk, BitMap& bmp) {
 		if (index < 6) {
 			i_block[index] = block;
 		}
 		else if (index < 6 + BlockSize / 2) {
-			//todo:这里需要读写文件,只有主类MyExt2才做得到,应移到那里, 下同
+			IndexBlock i1;
+			index -= 6;
+			//todo:这里假设间接索引块已经建立, 实际上不行,下同且有两次
+			//比较复杂的是数据块号从0起始,如何判断间接索引块是否存在?可能需要利用0号必为根目录的目录内容来做/i_blocks限制+及时设置
+			//可能在设置一个数据块索引的同时,需要再多次分配给路径上的索引块以可用块号,这需要块位图,所以应怎么做?
+
+			//解决方法:只允许在末尾i_blocks添加一个索引,用到间接索引块时立即分配,用i_blocks来判断间接索引块是否已建立
+			//因为需要用到dsk,bmp等MyExt2的成员,这个方法应该挪过去
+			//get_index现已可用,但涉及dsk,仍应移动
+			dsk.read(i_block[6] + DataBlockOffset, (char*)&i1);
+			i1.index[index] = block;
+			dsk.write(i_block[6] + DataBlockOffset, (char*)&i1);
+		}
+		else {
+			IndexBlock i1, i2;
+			index -= 6 + BlockSize / 2;
+			dsk.read(i_block[7] + DataBlockOffset, (char*)&i1);
+			dsk.read(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
+			i2.index[index % (BlockSize / 2)] = block;
+			dsk.write(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
 		}
 		i_blocks++;
 	}
-	//获取一个数据块索引
-	u16 get_index() {
-		;
+	//用索引号, 获取一个数据块号
+	u16 get_index(u16 index, DiskSim& dsk) {
+		if (index > i_blocks) {
+			std::cout << "index in i_node.get_index() out of range!please check\n";
+			exit(-1);
+		}
+		if (index < 6) {
+			return i_block[index];
+		}
+		else if (index < 6 + BlockSize / 2) {
+			IndexBlock i1;
+			index -= 6;
+			dsk.read(i_block[6] + DataBlockOffset, (char*)&i1);
+			return i1.index[index];
+		}
+		else {
+			IndexBlock i1, i2;
+			index -= 6 + BlockSize / 2;
+			dsk.read(i_block[7] + DataBlockOffset, (char*)&i1);
+			dsk.read(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
+			return i2.index[index % (BlockSize / 2)];
+		}
 	}
 };
 
 //目录文件内容中的一项
-//目录项不定长,解析比较麻烦
+//todo:目录项不定长,解析比较麻烦
 struct DirEntry
 {
 	u16 inode = 0;//此目录项对应文件的inode号
