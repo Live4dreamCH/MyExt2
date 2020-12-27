@@ -4,7 +4,7 @@
 #include "pch.h"
 #include <iostream>
 #include <string>
-//#include "MyExt2.cpp"
+#include "MyExt2.cpp"
 #include <regex>
 
 //定义:磁盘块号从0开始, 如组描述符的块号就为0
@@ -14,7 +14,12 @@
 int main(int argc, char* argv[])
 {
     //std::cout << sizeof(Group_Descriptor) << ' ' << sizeof(Inode) << ' ' << sizeof(BitMap);
-    //MyExt2 test;
+    //std::string a("Hi!");
+    //char b[16] = "123456789012";
+    //a.copy(b, sizeof b);
+    //std::cout << b;
+
+    MyExt2 test;
     std::string command, user("root"), token;
     if (argc > 1)
         user = argv[1];
@@ -22,7 +27,7 @@ int main(int argc, char* argv[])
     std::sregex_token_iterator end;
     while (true)
     {
-        std::cout << user + "@" + "test.volume_name()" + ":" + "test.curr_path()" + "$ ";
+        std::cout << user + "@" + test.volume_name() + ":" + test.curr_path() + "$ ";
         std::getline(std::cin, command);
         std::sregex_token_iterator it(command.begin(), command.end(), whites, -1);
         if (it != end)
@@ -57,10 +62,15 @@ int main(int argc, char* argv[])
             std::cout << "7\n";
         }
         else if (token == "format") {
-            std::cout << "enter new volume name: ";
-            std::string vn;
-            std::getline(std::cin, vn);
-            //test.format(vn);
+            std::cout << "ALL data lose WARNING!!!continue?(y/N)";
+            std::string res;
+            std::getline(std::cin, res);
+            if (res == "y" || res == "Y") {
+                std::cout << "enter new volume name: ";
+                std::string vn;
+                std::getline(std::cin, vn);
+                test.format(vn);
+            }
         }
         else if (token == "chmod") {
             std::cout << "8\n";

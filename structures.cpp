@@ -124,42 +124,46 @@ class BitMap
     bool start;
 
 public:
-    BitMap(bool is_inode) :start(is_inode) {}
+    BitMap(bool is_inode) {
+        this->start = is_inode;
+    }
 
     //置pos位为1
-    void set_bit(u64 pos) {
+    void set_bit(u16 pos) {
         pos -= start;
         u64 t = 0x01;
         bits[pos / 64] |= t << (pos % 64);
     }
 
     //重置pos位为0
-    void reset_bit(u64 pos) {
+    void reset_bit(u16 pos) {
         pos -= start;
         u64 t = 0x01;
         bits[pos / 64] &= ~(t << (pos % 64));
     }
 
-    //获取位图首地址,用于写入磁盘
+    //获取位图首地址,用于读写磁盘
     char* pointer() {
         return (char*)bits;
     }
 
     //取某一位的值
-    bool get_bit(u64 pos) {
+    bool get_bit(u16 pos) {
         pos -= start;
         u64 t = (u64)0x01 << (pos % 64);
         return bool(bits[pos / 64] & t);
     }
 
     //寻找空位: 从某一位(pos,含)向后寻找
-    //若有连续的n位为空, 则返回这n位的首位位置
-    //若无连续n位, 则返回最大的连续空位数的相反数
+    //若有连续的n位为空, 则返回这n位的首位位置, 并置这n位为1
+    //若无连续n位, 则返回最大的连续空位数的相反数-1(避免0的二义性)
     //所谓"连续"是首尾循环的
-    long long int find_zeros(u64 pos, u64 n) {
+    int find_zeros(u16 pos, u16 n) {
+        if (n == 0)
+            return pos;
         pos -= start;
-        long long int curr = 0, max = 0;
-        for (u64 i = pos; i < BlockSize * 8; i++)
+        int curr = 0, max = 0;
+        for (u16 i = pos; i < BlockSize * 8; i++)
         {
             if (this->get_bit(i)) {
                 if (max < curr)
@@ -169,11 +173,14 @@ public:
             else {
                 curr++;
                 if (curr == n) {
-                    return i - n + 1;
+                    for (int j = i - n + 1; j <= i; j++) {
+                        this->set_bit(j);
+                    }
+                    return i - n + 1 + start;
                 }
             }
         }
-        for (u64 i = 0; i < pos; i++)
+        for (u16 i = 0; i < pos; i++)
         {
             if (this->get_bit(i)) {
                 if (max < curr)
@@ -183,14 +190,24 @@ public:
             else {
                 curr++;
                 if (curr == n) {
-                    if (i + 1 >= n)
-                        return i - n + 1;
-                    else
-                        return i + BlockSize * 8 - n + 1;
+                    if (i + 1 >= n) {
+                        for (int j = i - n + 1; j <= i; j++) {
+                            this->set_bit(j);
+                        }
+                        return i - n + 1 + start;
+                    }
+                    else {
+                        for (int j = i + BlockSize * 8 - n + 1; j !=i+1; j++) {
+                            if (j == BlockSize * 8)
+                                j = 0;
+                            this->set_bit(j);
+                        }
+                        return i + BlockSize * 8 - n + 1 + start;
+                    }
                 }
             }
         }
-        return (curr > max) ? -curr : -max;
+        return (curr > max) ? -curr - 1 : -max - 1;
     }
 };
 
@@ -198,21 +215,20 @@ public:
 //sizeof(Group_Descriptor) = 512 Bytes
 struct Group_Descriptor
 {
-    char volume_name[16];//卷名
+    char volume_name[16] = "Volume name";//卷名
     u16 block_bitmap = 1;//数据块位图所在的磁盘块号
     u16 inode_bitmap = 2;//索引结点位图的磁盘块号
     u16 inode_table = 3;//索引结点表的起始磁盘块号
 
     //todo:针对这几个值有一系列操作,如判零 自减等.封装它们很没意思,直接外部修改吧
-    u16 free_blocks_count;//空闲块的个数(指数据块?)
-    u16 free_inodes_count;//空闲索引结点的个数
-    u16 used_dirs_count;//目录的个数
+    u16 free_blocks_count = BlockSize * 8;//空闲块的个数(指数据块?)
+    u16 free_inodes_count = BlockSize * 8;//空闲索引结点的个数
+    u16 used_dirs_count = 0;//目录的个数
 
     char pad[4];//填充
     char remain_padding[480] = { 0 };//继续填充至512字节
 
-    Group_Descriptor(char name[], u16 fb = BlockSize * 8, u16 fi = BlockSize * 8, u16 dir = 0)
-        :free_blocks_count(fb), free_inodes_count(fi), used_dirs_count(dir)
+    Group_Descriptor()
     {
         for (int i = 0; i < 4; i++)
         {
@@ -272,67 +288,54 @@ struct Inode
             i_block[i] = 0;
         }
     }
-    //设置一个数据块索引, block是数据块号, index是第几个索引(0始), bmp是块位图
-    void set_index(u16 block, u16 index, DiskSim& dsk, BitMap& bmp) {
-        if (index < 6) {
-            i_block[index] = block;
-        }
-        else if (index < 6 + BlockSize / 2) {
-            IndexBlock i1;
-            index -= 6;
-            //todo:这里假设间接索引块已经建立, 实际上不行,下同且有两次
-            //比较复杂的是数据块号从0起始,如何判断间接索引块是否存在?可能需要利用0号必为根目录的目录内容来做/i_blocks限制+及时设置
-            //可能在设置一个数据块索引的同时,需要再多次分配给路径上的索引块以可用块号,这需要块位图,所以应怎么做?
-
-            //解决方法:只允许在末尾i_blocks添加一个索引,用到间接索引块时立即分配,用i_blocks来判断间接索引块是否已建立
-            //因为需要用到dsk,bmp等MyExt2的成员,这个方法应该挪过去
-            //get_index现已可用,但涉及dsk,仍应移动
-            dsk.read(i_block[6] + DataBlockOffset, (char*)&i1);
-            i1.index[index] = block;
-            dsk.write(i_block[6] + DataBlockOffset, (char*)&i1);
-        }
-        else {
-            IndexBlock i1, i2;
-            index -= 6 + BlockSize / 2;
-            dsk.read(i_block[7] + DataBlockOffset, (char*)&i1);
-            dsk.read(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
-            i2.index[index % (BlockSize / 2)] = block;
-            dsk.write(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
-        }
-        i_blocks++;
-    }
-    //用索引号, 获取一个数据块号
-    u16 get_index(u16 index, DiskSim& dsk) {
-        if (index > i_blocks) {
-            std::cout << "index in i_node.get_index() out of range!please check\n";
-            exit(-1);
-        }
-        if (index < 6) {
-            return i_block[index];
-        }
-        else if (index < 6 + BlockSize / 2) {
-            IndexBlock i1;
-            index -= 6;
-            dsk.read(i_block[6] + DataBlockOffset, (char*)&i1);
-            return i1.index[index];
-        }
-        else {
-            IndexBlock i1, i2;
-            index -= 6 + BlockSize / 2;
-            dsk.read(i_block[7] + DataBlockOffset, (char*)&i1);
-            dsk.read(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
-            return i2.index[index % (BlockSize / 2)];
-        }
-    }
 };
 
 //目录文件内容中的一项
-//todo:目录项不定长,解析比较麻烦
 struct DirEntry
 {
-    u16 inode = 0;//此目录项对应文件的inode号
-    u16 rec_len = 7;//此目录项的长度(不定长,7~261)
-    char name_len = 1;//文件名长度
+    u16 inode = 0;//此目录项对应文件的inode号, 非0则为正确的目录项
+    u16 rec_len = 7;//此目录项的长度(不定长,至少7,可能大于实际长度,是为了在有空隙的情况下找到下一个目录项)
+    char name_len = 0;//文件名长度(不包括\0)
     char file_type = 0;//文件类型
     char name[256] = { 0 };//文件名
+
+    DirEntry() {}
+
+    //判断一段二进制字节流是否为正确存在的目录项
+    bool is_alive(char* bits) {
+        u16* test = (u16*)bits;
+        if (*test == 0)
+            return false;
+        return true;
+    }
+
+    //从二进制数据中建立结构, 返回可能存在的下一项的首地址
+    //使用时需保证数据的正确性
+    char* init(char* bits) {
+        u16* pt16 = (u16*)bits;
+        inode = *(pt16++);
+        rec_len = *pt16;
+        char* pt8 = bits + 4;
+        name_len = *(pt8++);
+        file_type= *(pt8++);
+        u16 i = 0;
+        for (; i < name_len; i++) {
+            name[i]= *(pt8++);
+        }
+        name[i] = 0;
+        return bits + rec_len;
+    }
+
+    //获取从指针位置, 到下一个已用目录项之间的空隙的长度
+    //要求指针指向一个已被删除的目录项首地址, 且其后仍有正确存在的目录项
+    u64 gap_len(char* bits) {
+        u64 sum_len = 0;
+        u16 this_len = 0;
+        while (!is_alive(bits)) {
+            this_len = *(((u16*)bits) + 1);
+            sum_len += this_len;
+            bits += this_len;
+        }
+        return sum_len;
+    }
 };
