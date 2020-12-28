@@ -12,7 +12,6 @@ class DiskSim
 {
     std::fstream disk;//连接文件的流
     bool old = true;//由于文件系统首次启动和再次启动的行为可能不同, 所以需要保留,传递判断结果
-    //todo:真的吗?
 
     char buffer[BlockSize] = { 0 };//缓冲区
     u16 bufpos = 0;
@@ -109,6 +108,16 @@ public:
     //硬盘是否是新建的
     bool is_new() {
         return !old;
+    }
+
+    //数据全部清零
+    void clear() {
+        char zerob[BlockSize] = { 0 };
+        for (int i = 0; i < FS_Size / BlockSize; i++)
+        {
+            disk.write(zerob, BlockSize);
+        }
+        std::cout << "Disk has been initialized with full 0!\n";
     }
 
     ~DiskSim()
@@ -215,13 +224,13 @@ public:
 //sizeof(Group_Descriptor) = 512 Bytes
 struct Group_Descriptor
 {
-    char volume_name[16] = "Volume name";//卷名
+    char volume_name[16] = { 0 };//卷名
     u16 block_bitmap = 1;//数据块位图所在的磁盘块号
     u16 inode_bitmap = 2;//索引结点位图的磁盘块号
     u16 inode_table = 3;//索引结点表的起始磁盘块号
 
     //todo:针对这几个值有一系列操作,如判零 自减等.封装它们很没意思,直接外部修改吧
-    u16 free_blocks_count = BlockSize * 8;//空闲块的个数(指数据块?)
+    u16 free_blocks_count = BlockSize * 8;//空闲块的个数(指数据块)
     u16 free_inodes_count = BlockSize * 8;//空闲索引结点的个数
     u16 used_dirs_count = 0;//目录的个数
 

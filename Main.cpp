@@ -11,6 +11,23 @@
 //索引节点(inode)号从1开始, 如根目录的inode就为1
 //数据块号从0开始, 如根目录的目录文件就在第0块
 
+void format(MyExt2& fs) {
+    std::cout << "WARNING!!! ALL data will be lost!!! continue?(y/N) ";
+    std::string res;
+    std::getline(std::cin, res);
+    if (res == "y" || res == "Y") {
+        std::cout << "enter new volume name:(default:MyExt2) ";
+        std::string vn;
+        std::getline(std::cin, vn);
+        if (vn == "")
+            vn = "MyExt2";
+        if (vn.size() > 15) {
+            std::cout << "volume name too long! < 16 chars.\n";
+        }
+        fs.format(vn);
+    }
+}
+
 int main(int argc, char* argv[])
 {
     //std::cout << sizeof(Group_Descriptor) << ' ' << sizeof(Inode) << ' ' << sizeof(BitMap);
@@ -20,6 +37,10 @@ int main(int argc, char* argv[])
     //std::cout << b;
 
     MyExt2 test;
+    while (test.is_new()) {
+        std::cout << "New disk, please format it.\n";
+        format(test);
+    }
     std::string command, user("root"), token;
     if (argc > 1)
         user = argv[1];
@@ -49,7 +70,7 @@ int main(int argc, char* argv[])
         else if (token == "mkdir") {
             std::cout << "3\n";
         }
-        else if (token == "touch") {
+        else if (token == "create") {
             std::cout << "4\n";
         }
         else if (token == "rm") {
@@ -62,15 +83,7 @@ int main(int argc, char* argv[])
             std::cout << "7\n";
         }
         else if (token == "format") {
-            std::cout << "ALL data lose WARNING!!!continue?(y/N)";
-            std::string res;
-            std::getline(std::cin, res);
-            if (res == "y" || res == "Y") {
-                std::cout << "enter new volume name: ";
-                std::string vn;
-                std::getline(std::cin, vn);
-                test.format(vn);
-            }
+            format(test);
         }
         else if (token == "chmod") {
             std::cout << "8\n";
