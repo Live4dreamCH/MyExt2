@@ -37,7 +37,7 @@ int main(int argc, char* argv[])
     //std::cout << b;
 
     MyExt2 test;
-    while (test.is_new()) {
+    while (!test.is_formatted()) {
         std::cout << "New disk, please format it.\n";
         format(test);
     }

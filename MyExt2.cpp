@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "structures.cpp"
-#include <set>
+#include <map>
 #include <string>
 #include <regex>
 
@@ -9,13 +9,14 @@
 class MyExt2
 {
     DiskSim disk;
-    std::set<u16> fopen_table;//文件打开表
+    std::map<u16, std::string> fopen_table;//文件打开表
     //u16 last_alloc_inode = 0;//上次分配的索引结点号
     //u16 last_alloc_block = 0;//上次分配的数据块号
     u16 current_dir = 0;//当前目录(索引结点）
     std::string current_path = "";//当前路径(字符串) 
     Group_Descriptor gdcache;//组描述符的内存缓存
     BitMap inode_map, block_map;//位图的内存缓存
+    bool is_fmt;//是否已格式化
 
     //对某Inode节点node, 在索引号为node.i_blocks处, 添加一个数据块索引, block是数据块号
     //由于过程中可能会申请间接索引块,磁盘满后可能失败,故返回是否成功
@@ -120,20 +121,57 @@ class MyExt2
         }
     }
 
-    //将一个path转换为inode号
+    //todo:将一个path转换为inode号
     //失败返回0, 一个错误的inode号
     u16 path2inode(std::string path) {
         ;
     }
 
-    //在目录inode下新建文件name
-    bool create_file_inode(char name[], u16 inode) {
-        //todo:新建文件
+    //todo:在目录dir_inode下新建文件name
+    bool create_file_inode(char name[], u16 dir_inode) {
+        ;
+    }
+
+    //todo:将一个新建的空文件修改为目录文件, 并初始化. ..两项
+    void file2dir(u16 inode, u16 parent_inode) {
+        ;
+    }
+    void file2dir(Inode& inode, u16 parent) {
+        ;
+    }
+
+    //获取index号对应的inode索引结构
+    Inode get_inode(u16 index) {
+        Inode res, *pt;
+        char block[BlockSize] = { 0 };
+        disk.read((index - 1) / InodePerBlock + gdcache.inode_table, block);
+        pt = ((Inode*)block) + ((index - 1) % InodePerBlock);
+        res = *pt;
+        return res;
+    }
+
+    //设置第index个inode
+    void set_inode(Inode& inode, u16 index) {
+        Inode* pt;
+        char block[BlockSize] = { 0 };
+        disk.read((index - 1) / InodePerBlock + gdcache.inode_table, block);
+        pt = ((Inode*)block) + ((index - 1) % InodePerBlock);
+        *pt = inode;
+        disk.write((index - 1) / InodePerBlock + gdcache.inode_table, block);
     }
 
 public:
     MyExt2()
-        :inode_map(true), block_map(false) {}
+        :inode_map(true), block_map(false) {
+        is_fmt = !disk.is_new();
+        if (is_fmt) {
+            disk.read(0, (char*)&gdcache);
+            disk.read(gdcache.block_bitmap, block_map.pointer());
+            disk.read(gdcache.inode_bitmap, inode_map.pointer());
+            current_dir = 1;
+            current_path = "/";
+        }
+    }
 
     std::string curr_path() const {
         return current_path;
@@ -143,8 +181,8 @@ public:
         return gdcache.volume_name;
     }
 
-    bool is_new() {
-        return disk.is_new();
+    bool is_formatted() {
+        return is_fmt;
     }
 
     //格式化
@@ -163,19 +201,31 @@ public:
         inode_map = in;
 
         //todo:新建根目录
-        DirEntry root_de;
-        root_de.file_type = 2;
-        root_de.inode = 1;
-
-        Inode root_inode;
-        root_inode.i_mode = (2 << 8) + 7;
+        Inode root_inode(2, 7);
         root_inode.i_blocks = 1;
+        root_inode.i_size = 64 * 2;
         root_inode.i_block[0] = 0;
-        root_inode.i_ctime = root_inode.i_atime = root_inode.i_mtime = time(NULL);
+        this->set_inode(root_inode, 1);
+
+        DirEntry p(1,".",2), pp(1, "..", 2);
+        char temp[BlockSize] = { 0 }, * pt = temp;
+        *((DirEntry*)pt) = p;
+        pt += p.rec_len;
+        *((DirEntry*)pt) = pp;
+        disk.write(0 + DataBlockOffset, temp);
+
+        current_dir = 1;
+        current_path = "/";
+        gdcache.free_blocks_count--;
+        gdcache.free_inodes_count--;
+        gdcache.used_dirs_count++;
+        block_map.set_bit(0);
+        inode_map.set_bit(1);
 
         disk.write(0, (const char*)&gdcache);
         disk.write(gdcache.block_bitmap, block_map.pointer());
         disk.write(gdcache.inode_bitmap, inode_map.pointer());
+        is_fmt = true;
     }
 
     //在当前目录下新建文件name
