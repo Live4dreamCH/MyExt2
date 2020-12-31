@@ -101,7 +101,7 @@ class MyExt2
     u16 get_index(Inode& node, u16 index) {
         if (index > node.i_blocks) {
             std::cout << "index in i_node.get_index() out of range!please check\n";
-            exit(-1);
+            return 0;
         }
         if (index < 6) {
             return node.i_block[index];
@@ -121,10 +121,45 @@ class MyExt2
         }
     }
 
-    //todo:将一个path转换为inode号
+    //todo:将一个path转换为inode号, 此path不能为空串
     //失败返回0, 一个错误的inode号
     u16 path2inode(std::string path) {
-        ;
+        std::regex split("/");
+        std::sregex_token_iterator end;
+        std::sregex_token_iterator it(path.begin(), path.end(), split, -1);
+        if (it->str() == "") {
+            ;
+        }
+        else {
+            ;
+        }
+
+        return 0;
+    }
+
+    //在目录dir_index中,寻找名为name的文件, 并返回其inode号
+    //由于有可能一个目录项横跨两个磁盘块, 故使用2个缓冲区,达到"连续"的效果
+    u16 name2inode(std::string name, u16 dir_index) {
+        //u16 res = 0;
+        Inode dir_inode = get_inode(dir_index);
+        char buff[2 * BlockSize] = { 0 }, * head = buff;
+        char* mid = head + BlockSize, * curr = head;
+        DirEntry onebyone;
+
+        u16 i = 0, dbn, maxlen = 0, len = 0;
+        while (i < dir_inode.i_blocks)
+        {
+            dbn = get_index(dir_inode, i);
+            disk.read(dbn + DataBlockOffset, head);
+            maxlen += BlockSize;
+            while (true)
+            {
+                onebyone.is_alive(curr, len);
+                //todo:到这
+            }
+            i++;
+        }
+        return 0;
     }
 
     //todo:在目录dir_inode下新建文件name
@@ -143,6 +178,10 @@ class MyExt2
     //获取index号对应的inode索引结构
     Inode get_inode(u16 index) {
         Inode res, *pt;
+        if (index == 0) {
+            std::cout << "Inode get_inode(u16 index)\n";
+            return res;
+        }
         char block[BlockSize] = { 0 };
         disk.read((index - 1) / InodePerBlock + gdcache.inode_table, block);
         pt = ((Inode*)block) + ((index - 1) % InodePerBlock);
@@ -158,6 +197,10 @@ class MyExt2
         pt = ((Inode*)block) + ((index - 1) % InodePerBlock);
         *pt = inode;
         disk.write((index - 1) / InodePerBlock + gdcache.inode_table, block);
+    }
+
+    void list(u16 index) {
+        ;
     }
 
 public:
@@ -200,7 +243,7 @@ public:
         block_map = db;
         inode_map = in;
 
-        //todo:新建根目录
+        //新建根目录
         Inode root_inode(2, 7);
         root_inode.i_blocks = 1;
         root_inode.i_size = 64 * 2;
@@ -241,6 +284,16 @@ public:
         return this->create_file_inode(name, inode);
     }
 
+    void ls(std::string path) {
+        u16 in = path2inode(path);
+        if (in == 0) {
+            std::cout << "ls: cannot access \'" + path + "\': No such file or directory\n";
+        }
+        else {
+            std::cout << path + ":\n";
+            this->list(in);
+        }
+    }
 
     ~MyExt2()
     {

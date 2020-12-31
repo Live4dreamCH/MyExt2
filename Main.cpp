@@ -28,14 +28,33 @@ void format(MyExt2& fs) {
     }
 }
 
-int main(int argc, char* argv[])
-{
+void test_features() {
     //std::cout << sizeof(Group_Descriptor) << ' ' << sizeof(Inode) << ' ' << sizeof(BitMap);
+
     //std::string a("Hi!");
     //char b[16] = "123456789012";
     //a.copy(b, sizeof b);
     //std::cout << b;
 
+    std::string command, token;
+    std::regex whites("/");
+    std::sregex_token_iterator end;
+    while (true)
+    {
+        std::cout << "$ ";
+        std::getline(std::cin, command);
+        std::sregex_token_iterator it(command.begin(), command.end(), whites, -1);
+        while (it != end)
+        {
+            std::cout << it->str() << '\n';
+            it++;
+        }
+    }
+}
+
+int main(int argc, char* argv[])
+{
+    test_features();
     MyExt2 test;
     while (!test.is_formatted()) {
         std::cout << "New disk, please format it.\n";
@@ -62,7 +81,15 @@ int main(int argc, char* argv[])
         }
         
         if (token == "ls") {
-            std::cout << "1\n";
+            if (++it == end) {
+                test.ls("./");
+            }
+            else {
+                do {
+                    token = it->str();
+                    test.ls(token);
+                } while (++it != end);
+            }
         }
         else if (token == "cd") {
             std::cout << "2\n";

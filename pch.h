@@ -16,5 +16,5 @@ constexpr u16 DataBlockOffset = 1 + 1 + 1 + InodeSize * 8;
 //实际编写中发现数据块号从0开始很不方便, 后来人建议从1开始
 
 /*todo:总
-main中的指令用正则表达式来做吧
+已知缺陷:文件名中不能出现空格
 */

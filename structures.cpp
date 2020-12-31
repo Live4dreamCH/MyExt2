@@ -229,7 +229,7 @@ struct Group_Descriptor
     u16 inode_bitmap = 2;//索引结点位图的磁盘块号
     u16 inode_table = 3;//索引结点表的起始磁盘块号
 
-    //todo:针对这几个值有一系列操作,如判零 自减等.封装它们很没意思,直接外部修改吧
+    //针对这几个值有一系列操作,如判零 自减等.封装它们很没意思,直接外部修改吧
     u16 free_blocks_count = BlockSize * 8;//空闲块的个数(指数据块)
     u16 free_inodes_count = BlockSize * 8;//空闲索引结点的个数
     u16 used_dirs_count = 0;//目录的个数
@@ -315,21 +315,27 @@ struct DirEntry
         name_len = strl;
     }
 
+    DirEntry() {}
+
     //判断一段二进制字节流是否为正确存在的目录项
-    bool is_alive(char* bits) {
-        u16* test = (u16*)bits;
+    //若此目录项inode为0, 返回false, rec_len不变
+    //若此目录项inode为1, 返回true, rec_len置为此目录项的rec_len
+    //使用时遵照请求调页的思想
+    bool is_alive(char* head, u16& rec_len) {
+        u16* test = (u16*)head;
         if (*test == 0)
             return false;
+        rec_len = *(++test);
         return true;
     }
 
     //从二进制数据中建立结构, 返回可能存在的下一项的首地址
     //使用时需保证数据的正确性
-    char* init(char* bits) {
-        u16* pt16 = (u16*)bits;
+    char* init(char* head) {
+        u16* pt16 = (u16*)head;
         inode = *(pt16++);
         rec_len = *pt16;
-        char* pt8 = bits + 4;
+        char* pt8 = head + 4;
         name_len = *(pt8++);
         file_type= *(pt8++);
         u16 i = 0;
@@ -337,19 +343,37 @@ struct DirEntry
             name[i]= *(pt8++);
         }
         name[i] = 0;
-        return bits + rec_len;
+        return head + rec_len;
     }
 
     //获取从指针位置, 到下一个已用目录项之间的空隙的长度
     //要求指针指向一个已被删除的目录项首地址, 且其后仍有正确存在的目录项
-    u64 gap_len(char* bits) {
-        u64 sum_len = 0;
-        u16 this_len = 0;
-        while (!is_alive(bits)) {
-            this_len = *(((u16*)bits) + 1);
-            sum_len += this_len;
-            bits += this_len;
-        }
-        return sum_len;
+    //同样提供最大长度, 
+    //u64 gap_len(char* bits) {
+    //    u64 sum_len = 0;
+    //    u16 this_len = 0;
+    //    while (!is_alive(bits)) {
+    //        this_len = *(((u16*)bits) + 1);
+    //        sum_len += this_len;
+    //        bits += this_len;
+    //    }
+    //    return sum_len;
+    //}
+
+    //从指针head开始, 找到下一个完整目录项的指针
+    //从head指向的字节算起, 若在max_len内无完整目录项, 则返回nullptr
+    //max_len=buf_tail-head=可用长度
+    char* next_head(char* head, u64 max_len) {
+        u16* p16 = (u16*)head;
+        char* p8 = head;
+        u64 len1 = *(p16 + 1), len2;
+        if (len1 > max_len - 4)
+            return nullptr;
+        p8 += len1;//p8->next_head
+        p16 = (u16*)p8;//p16->next_head
+        len2 = *(p16 + 1);
+        if (len1 + len2 > max_len)
+            return nullptr;
+        return p8;
     }
 };
