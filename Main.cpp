@@ -36,25 +36,31 @@ void test_features() {
     //a.copy(b, sizeof b);
     //std::cout << b;
 
-    std::string command, token;
-    std::regex whites("/");
-    std::sregex_token_iterator end;
-    while (true)
-    {
-        std::cout << "$ ";
-        std::getline(std::cin, command);
-        std::sregex_token_iterator it(command.begin(), command.end(), whites, -1);
-        while (it != end)
-        {
-            std::cout << it->str() << '\n';
-            it++;
-        }
-    }
+    //std::string command, token;
+    //std::regex whites("/");
+    //std::sregex_token_iterator end;
+    //while (true)
+    //{
+    //    std::cout << "$ ";
+    //    std::getline(std::cin, command);
+    //    std::sregex_token_iterator it(command.begin(), command.end(), whites, -1);
+    //    while (it != end)
+    //    {
+    //        std::cout << it->str() << '\n';
+    //        it++;
+    //    }
+    //}
+
+    std::string sn = "Hello!";
+    char cn[100] = "Hello!";
+    char* pt = cn;
+    std::cout << (sn == pt);
 }
 
 int main(int argc, char* argv[])
 {
     test_features();
+
     MyExt2 test;
     while (!test.is_formatted()) {
         std::cout << "New disk, please format it.\n";

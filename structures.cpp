@@ -360,20 +360,17 @@ struct DirEntry
     //    return sum_len;
     //}
 
-    //从指针head开始, 找到下一个完整目录项的指针
-    //从head指向的字节算起, 若在max_len内无完整目录项, 则返回nullptr
+    //从指针head开始, 找到下一个目录项的指针
+    //从head指向的字节算起, 若在max_len内无目录项, 则返回nullptr
     //max_len=buf_tail-head=可用长度
+    //下一项至少要有inode和rec_len存在,便于指针移去之后的判断
     char* next_head(char* head, u64 max_len) {
         u16* p16 = (u16*)head;
         char* p8 = head;
-        u64 len1 = *(p16 + 1), len2;
+        u64 len1 = *(p16 + 1);
         if (len1 > max_len - 4)
             return nullptr;
         p8 += len1;//p8->next_head
-        p16 = (u16*)p8;//p16->next_head
-        len2 = *(p16 + 1);
-        if (len1 + len2 > max_len)
-            return nullptr;
         return p8;
     }
 };

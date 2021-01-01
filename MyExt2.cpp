@@ -143,19 +143,50 @@ class MyExt2
         //u16 res = 0;
         Inode dir_inode = get_inode(dir_index);
         char buff[2 * BlockSize] = { 0 }, * head = buff;
-        char* mid = head + BlockSize, * curr = head;
+        char* mid = head + BlockSize, * curr = head, * temp;
         DirEntry onebyone;
-
+        bool last, live;
+        //调页
         u16 i = 0, dbn, maxlen = 0, len = 0;
         while (i < dir_inode.i_blocks)
         {
+            if (i == dir_inode.i_blocks - 1)
+                last = true;
+
             dbn = get_index(dir_inode, i);
-            disk.read(dbn + DataBlockOffset, head);
+            if (i == 0)
+                disk.read(dbn + DataBlockOffset, head);
+            else if (i == 1)
+                disk.read(dbn + DataBlockOffset, mid);
+            else {
+                for (int j = 0; j < BlockSize; j++) {
+                    *(head + j) = *(mid + j);
+                }
+                curr -= BlockSize;
+                disk.read(dbn + DataBlockOffset, mid);
+            }
             maxlen += BlockSize;
+
+            //目录项
             while (true)
             {
-                onebyone.is_alive(curr, len);
-                //todo:到这
+                live = onebyone.is_alive(curr, len);
+                if (len > maxlen) {
+                    break;
+                }
+                if (live) {
+                    onebyone.init(curr);
+                    if (name == onebyone.name) {
+                        return onebyone.inode;
+                    }
+                }
+                temp = onebyone.next_head(curr, maxlen);
+                if (temp == nullptr)
+                    break;
+                else {
+                    maxlen -= (temp - curr);
+                    curr = temp;
+                }
             }
             i++;
         }
