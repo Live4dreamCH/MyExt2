@@ -1,4 +1,6 @@
-﻿#include "pch.h"
+﻿#pragma once
+
+#include "pch.h"
 #include <iostream>
 #include <ctime>
 #include <fstream>
@@ -40,7 +42,7 @@ public:
             }
             else
             {
-                std::cout << "Create disk(FS.txt) failed!\n";
+                std::cerr << "Create disk(FS.txt) failed!\n";
                 exit(-1);
             }
         }
@@ -52,7 +54,7 @@ public:
         }
         else
         {
-            std::cout << "Failed to load the disk(FS.txt)!\n";
+            std::cerr << "Failed to load the disk(FS.txt)!\n";
             exit(-1);
         }
     }
@@ -96,13 +98,6 @@ public:
             buf_dirty = false;
             bufpos = block_num;
         }
-    }
-
-    //返回缓冲区指针, 会置脏位为1
-    //约定不允许存储此指针以后使用
-    char* get_buf() {
-        buf_dirty = true;
-        return buffer;
     }
 
     //硬盘是否是新建的
@@ -166,7 +161,6 @@ public:
     //寻找空位: 从某一位(pos,含)向后寻找
     //若有连续的n位为空, 则返回这n位的首位位置, 并置这n位为1
     //若无连续n位, 则返回最大的连续空位数的相反数-1(避免0的二义性)
-    //所谓"连续"是首尾循环的
     int find_zeros(u16 pos, u16 n) {
         if (n == 0)
             return pos;
@@ -189,6 +183,7 @@ public:
                 }
             }
         }
+        curr = 0;
         for (u16 i = 0; i < pos; i++)
         {
             if (this->get_bit(i)) {
@@ -199,20 +194,10 @@ public:
             else {
                 curr++;
                 if (curr == n) {
-                    if (i + 1 >= n) {
-                        for (int j = i - n + 1; j <= i; j++) {
-                            this->set_bit(j);
-                        }
-                        return i - n + 1 + start;
+                    for (int j = i - n + 1; j <= i; j++) {
+                        this->set_bit(j);
                     }
-                    else {
-                        for (int j = i + BlockSize * 8 - n + 1; j !=i+1; j++) {
-                            if (j == BlockSize * 8)
-                                j = 0;
-                            this->set_bit(j);
-                        }
-                        return i + BlockSize * 8 - n + 1 + start;
-                    }
+                    return i - n + 1 + start;
                 }
             }
         }
@@ -299,12 +284,12 @@ struct Inode
     }
 
     //对某Inode节点node, 在索引号为node.i_blocks处, 添加一个数据块索引, block是数据块号
-//由于过程中可能会申请间接索引块,磁盘满后可能失败,故返回是否成功
-//若同时申请一二级间接索引块,二级失败, 会进行回退,避免1级索引块变为"死块"
-    bool add_block(Inode& node, u16 block) {
-        u16 index = node.i_blocks;
+    //由于过程中可能会申请间接索引块,磁盘满后可能失败,故返回是否成功
+    //若同时申请一二级间接索引块,二级失败, 会进行回退,避免1级索引块变为"死块"
+    bool add_block(u16 block, BitMap& block_map, Group_Descriptor& gdcache, DiskSim& disk) {
+        u16 index = i_blocks;
         if (index < 6) {
-            node.i_block[index] = block;
+            i_block[index] = block;
         }
         //这里假设间接索引块已经建立, 实际上不行,下同且有两次
         //比较复杂的是数据块号从0起始,如何判断间接索引块是否存在?可能需要利用0号必为根目录的目录内容来做/i_blocks限制+及时设置
@@ -321,14 +306,14 @@ struct Inode
                 if (ib < 0)
                     return false;
                 gdcache.free_blocks_count--;
-                node.i_block[6] = ib;
+                i_block[6] = ib;
                 i1.index[index] = block;
-                disk.write(node.i_block[6] + DataBlockOffset, (char*)&i1);
+                disk.write(i_block[6] + DataBlockOffset, (char*)&i1);
             }
             else {
-                disk.read(node.i_block[6] + DataBlockOffset, (char*)&i1);
+                disk.read(i_block[6] + DataBlockOffset, (char*)&i1);
                 i1.index[index] = block;
-                disk.write(node.i_block[6] + DataBlockOffset, (char*)&i1);
+                disk.write(i_block[6] + DataBlockOffset, (char*)&i1);
             }
         }
         else if (index < 6 + BlockSize / 2 + BlockSize * BlockSize / 4) {
@@ -344,11 +329,11 @@ struct Inode
                     block_map.reset_bit(ib1);
                     return false;
                 }
-                gdcache.free_blocks_count += 2;
-                node.i_block[7] = ib1;
+                gdcache.free_blocks_count -= 2;
+                i_block[7] = ib1;
                 i1.index[0] = ib2;
                 i2.index[0] = block;
-                disk.write(node.i_block[7] + DataBlockOffset, (char*)&i1);
+                disk.write(i_block[7] + DataBlockOffset, (char*)&i1);
                 disk.write(i1.index[0] + DataBlockOffset, (char*)&i2);
             }
             else if (index % (BlockSize / 2) == 0) {
@@ -357,14 +342,14 @@ struct Inode
                     return false;
                 }
                 gdcache.free_blocks_count--;
-                disk.read(node.i_block[7] + DataBlockOffset, (char*)&i1);
+                disk.read(i_block[7] + DataBlockOffset, (char*)&i1);
                 i1.index[index / (BlockSize / 2)] = ib2;
                 i2.index[0] = block;
-                disk.write(node.i_block[7] + DataBlockOffset, (char*)&i1);
+                disk.write(i_block[7] + DataBlockOffset, (char*)&i1);
                 disk.write(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
             }
             else {
-                disk.read(node.i_block[7] + DataBlockOffset, (char*)&i1);
+                disk.read(i_block[7] + DataBlockOffset, (char*)&i1);
                 disk.read(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
                 i2.index[index % (BlockSize / 2)] = block;
                 disk.write(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
@@ -373,29 +358,29 @@ struct Inode
         else {
             return false;
         }
-        node.i_blocks++;
+        i_blocks++;
         return true;
     }
 
     //对某Inode节点node, 用索引号index, 获取一个数据块号
-    u16 get_block(Inode& node, u16 index) {
-        if (index > node.i_blocks) {
-            std::cout << "index in i_node.get_block() out of range!please check\n";
+    u16 get_block(u16 index, DiskSim& disk) {
+        if (index > i_blocks) {
+            std::cerr << "index in i_node.get_block() out of range!please check\n";
             return 0;
         }
         if (index < 6) {
-            return node.i_block[index];
+            return i_block[index];
         }
         else if (index < 6 + BlockSize / 2) {
             IndexBlock i1;
             index -= 6;
-            disk.read(node.i_block[6] + DataBlockOffset, (char*)&i1);
+            disk.read(i_block[6] + DataBlockOffset, (char*)&i1);
             return i1.index[index];
         }
         else {
             IndexBlock i1, i2;
             index -= 6 + BlockSize / 2;
-            disk.read(node.i_block[7] + DataBlockOffset, (char*)&i1);
+            disk.read(i_block[7] + DataBlockOffset, (char*)&i1);
             disk.read(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
             return i2.index[index % (BlockSize / 2)];
         }
@@ -412,7 +397,8 @@ struct DirEntry
     char file_type = 0;//文件类型
     char name[256] = { 0 };//文件名
 
-    DirEntry(u16 index, std::string nm, char type) :inode(index), file_type(type) {
+    DirEntry(u16 nodei, std::string nm, char type)
+        :inode(nodei), file_type(type) {
         u32 strl = (nm.size() > sizeof(name) - 1) ? sizeof(name) - 1 : nm.size();
         nm.copy(name, strl);
         rec_len = 7 + strl;
@@ -424,7 +410,6 @@ struct DirEntry
     //判断一段二进制字节流是否为正确存在的目录项
     //若此目录项inode为0, 返回false, rec_len不变
     //若此目录项inode为1, 返回true, rec_len置为此目录项的rec_len
-    //使用时遵照请求调页的思想
     bool is_alive(char* head, u16& rec_len) {
         u16* test = (u16*)head;
         if (*test == 0)
@@ -441,10 +426,10 @@ struct DirEntry
         rec_len = *pt16;
         char* pt8 = head + 4;
         name_len = *(pt8++);
-        file_type= *(pt8++);
+        file_type = *(pt8++);
         u16 i = 0;
         for (; i < name_len; i++) {
-            name[i]= *(pt8++);
+            name[i] = *(pt8++);
         }
         name[i] = 0;
         return head + rec_len;
