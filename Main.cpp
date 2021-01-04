@@ -51,10 +51,10 @@ void test_features() {
     //    }
     //}
 
-    std::string sn = "Hello!";
-    char cn[100] = "Hello!";
-    char* pt = cn;
-    std::cout << (sn == pt);
+    //std::string sn = "Hello!";
+    //char cn[100] = "Hello!";
+    //char* pt = cn;
+    //std::cout << (sn == pt);
 }
 
 int main(int argc, char* argv[])

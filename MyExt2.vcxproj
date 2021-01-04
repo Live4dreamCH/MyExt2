@@ -141,6 +141,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="files.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MyExt2.cpp" />
     <ClCompile Include="structures.cpp" />

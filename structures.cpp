@@ -297,13 +297,117 @@ struct Inode
             i_block[i] = 0;
         }
     }
+
+    //对某Inode节点node, 在索引号为node.i_blocks处, 添加一个数据块索引, block是数据块号
+//由于过程中可能会申请间接索引块,磁盘满后可能失败,故返回是否成功
+//若同时申请一二级间接索引块,二级失败, 会进行回退,避免1级索引块变为"死块"
+    bool add_block(Inode& node, u16 block) {
+        u16 index = node.i_blocks;
+        if (index < 6) {
+            node.i_block[index] = block;
+        }
+        //这里假设间接索引块已经建立, 实际上不行,下同且有两次
+        //比较复杂的是数据块号从0起始,如何判断间接索引块是否存在?可能需要利用0号必为根目录的目录内容来做/i_blocks限制+及时设置
+        //可能在设置一个数据块索引的同时,需要再多次分配给路径上的索引块以可用块号,这需要块位图,所以应怎么做?
+        //解决方法:只允许在末尾i_blocks添加一个索引,用到间接索引块时立即分配,用i_blocks来判断间接索引块是否已建立
+        //因为需要用到dsk,bmp等MyExt2的成员,这个方法应该挪过去
+        //并且分配间接索引块后也要修改组描述符 块位图等
+        //已解决, 以上供纪念
+        else if (index < 6 + BlockSize / 2) {
+            IndexBlock i1;
+            index -= 6;
+            if (index == 0) {
+                int ib = block_map.find_zeros(0, 1);
+                if (ib < 0)
+                    return false;
+                gdcache.free_blocks_count--;
+                node.i_block[6] = ib;
+                i1.index[index] = block;
+                disk.write(node.i_block[6] + DataBlockOffset, (char*)&i1);
+            }
+            else {
+                disk.read(node.i_block[6] + DataBlockOffset, (char*)&i1);
+                i1.index[index] = block;
+                disk.write(node.i_block[6] + DataBlockOffset, (char*)&i1);
+            }
+        }
+        else if (index < 6 + BlockSize / 2 + BlockSize * BlockSize / 4) {
+            IndexBlock i1, i2;
+            index -= 6 + BlockSize / 2;
+            if (index == 0) {
+                int ib1 = block_map.find_zeros(0, 1);
+                int ib2 = block_map.find_zeros(0, 1);
+                if (ib1 < 0) {
+                    return false;
+                }
+                else if (ib2 < 0) {
+                    block_map.reset_bit(ib1);
+                    return false;
+                }
+                gdcache.free_blocks_count += 2;
+                node.i_block[7] = ib1;
+                i1.index[0] = ib2;
+                i2.index[0] = block;
+                disk.write(node.i_block[7] + DataBlockOffset, (char*)&i1);
+                disk.write(i1.index[0] + DataBlockOffset, (char*)&i2);
+            }
+            else if (index % (BlockSize / 2) == 0) {
+                int ib2 = block_map.find_zeros(0, 1);
+                if (ib2 < 0) {
+                    return false;
+                }
+                gdcache.free_blocks_count--;
+                disk.read(node.i_block[7] + DataBlockOffset, (char*)&i1);
+                i1.index[index / (BlockSize / 2)] = ib2;
+                i2.index[0] = block;
+                disk.write(node.i_block[7] + DataBlockOffset, (char*)&i1);
+                disk.write(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
+            }
+            else {
+                disk.read(node.i_block[7] + DataBlockOffset, (char*)&i1);
+                disk.read(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
+                i2.index[index % (BlockSize / 2)] = block;
+                disk.write(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
+            }
+        }
+        else {
+            return false;
+        }
+        node.i_blocks++;
+        return true;
+    }
+
+    //对某Inode节点node, 用索引号index, 获取一个数据块号
+    u16 get_block(Inode& node, u16 index) {
+        if (index > node.i_blocks) {
+            std::cout << "index in i_node.get_block() out of range!please check\n";
+            return 0;
+        }
+        if (index < 6) {
+            return node.i_block[index];
+        }
+        else if (index < 6 + BlockSize / 2) {
+            IndexBlock i1;
+            index -= 6;
+            disk.read(node.i_block[6] + DataBlockOffset, (char*)&i1);
+            return i1.index[index];
+        }
+        else {
+            IndexBlock i1, i2;
+            index -= 6 + BlockSize / 2;
+            disk.read(node.i_block[7] + DataBlockOffset, (char*)&i1);
+            disk.read(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
+            return i2.index[index % (BlockSize / 2)];
+        }
+    }
+
 };
 
 //目录文件内容中的一项
 struct DirEntry
 {
     u16 inode = 0;//此目录项对应文件的inode号, 非0则为正确的目录项
-    u16 rec_len = 7;//此目录项的长度(不定长,至少7,可能大于实际长度,是为了在有空隙的情况下找到下一个目录项)
+    u16 rec_len = 0;//此目录项的长度(不定长,至少7,可能大于实际长度,是为了在有空隙的情况下找到下一个目录项)
     char name_len = 0;//文件名长度(不包括\0)
     char file_type = 0;//文件类型
     char name[256] = { 0 };//文件名

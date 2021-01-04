@@ -3,6 +3,7 @@
 #include <map>
 #include <string>
 #include <regex>
+#include "files.cpp"
 
 //文件系统的内存数据结构及操作
 //"动态的"文件系统
@@ -10,18 +11,17 @@ class MyExt2
 {
     DiskSim disk;
     std::map<u16, std::string> fopen_table;//文件打开表
-    //u16 last_alloc_inode = 0;//上次分配的索引结点号
-    //u16 last_alloc_block = 0;//上次分配的数据块号
     u16 current_dir = 0;//当前目录(索引结点）
     std::string current_path = "";//当前路径(字符串) 
     Group_Descriptor gdcache;//组描述符的内存缓存
     BitMap inode_map, block_map;//位图的内存缓存
     bool is_fmt;//是否已格式化
 
+    /*
     //对某Inode节点node, 在索引号为node.i_blocks处, 添加一个数据块索引, block是数据块号
     //由于过程中可能会申请间接索引块,磁盘满后可能失败,故返回是否成功
     //若同时申请一二级间接索引块,二级失败, 会进行回退,避免1级索引块变为"死块"
-    bool add_index(Inode& node, u16 block) {
+    bool add_block(Inode& node, u16 block) {
         u16 index = node.i_blocks;
         if (index < 6) {
             node.i_block[index] = block;
@@ -98,9 +98,9 @@ class MyExt2
     }
 
     //对某Inode节点node, 用索引号index, 获取一个数据块号
-    u16 get_index(Inode& node, u16 index) {
+    u16 get_block(Inode& node, u16 index) {
         if (index > node.i_blocks) {
-            std::cout << "index in i_node.get_index() out of range!please check\n";
+            std::cout << "index in i_node.get_block() out of range!please check\n";
             return 0;
         }
         if (index < 6) {
@@ -120,27 +120,43 @@ class MyExt2
             return i2.index[index % (BlockSize / 2)];
         }
     }
+    */
 
-    //todo:将一个path转换为inode号, 此path不能为空串
+    //将一个path转换为inode号, 此path不能为空串
     //失败返回0, 一个错误的inode号
-    u16 path2inode(std::string path) {
+    //若成功, name值为文件名
+    u16 path2inode(std::string path, std::string& name) {
         std::regex split("/");
         std::sregex_token_iterator end;
         std::sregex_token_iterator it(path.begin(), path.end(), split, -1);
+        u16 index;
         if (it->str() == "") {
-            ;
+            index = 1;
         }
         else {
-            ;
+            index = current_dir;
         }
-
-        return 0;
+        while (it!=end)
+        {
+            name = it->str();
+            index = this->name2inode(name, index);
+            if (index == 0) {
+                name = "";
+                return 0;
+            }
+        }
+        return index;
     }
 
     //在目录dir_index中,寻找名为name的文件, 并返回其inode号
     //由于有可能一个目录项横跨两个磁盘块, 故使用2个缓冲区,达到"连续"的效果
+    //未找到返回0
     u16 name2inode(std::string name, u16 dir_index) {
         //u16 res = 0;
+        if (dir_index == 0) {
+            std::cout << name << ":file not found\n";
+            return 0;
+        }
         Inode dir_inode = get_inode(dir_index);
         char buff[2 * BlockSize] = { 0 }, * head = buff;
         char* mid = head + BlockSize, * curr = head, * temp;
@@ -153,7 +169,7 @@ class MyExt2
             if (i == dir_inode.i_blocks - 1)
                 last = true;
 
-            dbn = get_index(dir_inode, i);
+            dbn = get_block(dir_inode, i);
             if (i == 0)
                 disk.read(dbn + DataBlockOffset, head);
             else if (i == 1)
@@ -206,11 +222,12 @@ class MyExt2
         ;
     }
 
+    /*
     //获取index号对应的inode索引结构
     Inode get_inode(u16 index) {
         Inode res, *pt;
         if (index == 0) {
-            std::cout << "Inode get_inode(u16 index)\n";
+            std::cout << "Inode get_inode(u16 index=0)\n";
             return res;
         }
         char block[BlockSize] = { 0 };
@@ -222,6 +239,10 @@ class MyExt2
 
     //设置第index个inode
     void set_inode(Inode& inode, u16 index) {
+        if (index == 0) {
+            std::cout << "void set_inode(Inode& inode, u16 index=0)\n";
+            return;
+        }
         Inode* pt;
         char block[BlockSize] = { 0 };
         disk.read((index - 1) / InodePerBlock + gdcache.inode_table, block);
@@ -229,9 +250,23 @@ class MyExt2
         *pt = inode;
         disk.write((index - 1) / InodePerBlock + gdcache.inode_table, block);
     }
+    */
 
-    void list(u16 index) {
-        ;
+    //对目录, 列出其下的文件
+    //对文件, 列出其文件属性
+    void list(u16 index, std::string name) {
+        Inode target = get_inode(index);
+        u16 type = (target.i_mode >> 8) & 0x00ff;
+        if (type == 2) {
+            //todo:1
+        }
+        else {
+            char rwx[4] = "---", d = '-';
+            rwx[2] = (target.i_mode & (0x0001 << 0)) == 1 ? 'x' : '-';
+            rwx[1] = (target.i_mode & (0x0001 << 1)) == 1 ? 'w' : '-';
+            rwx[0] = (target.i_mode & (0x0001 << 2)) == 1 ? 'r' : '-';
+            std::cout << d << rwx << ' ' << target.i_size << '\t' << ctime((time_t*)&(target.i_mtime)) << '\t' << name << '\n';
+        }
     }
 
 public:
@@ -309,20 +344,22 @@ public:
 
     //在目录path下新建文件name
     bool create_file(char name[], std::string path) {
-        u16 inode = this->path2inode(path);
+        std::string dir;
+        u16 inode = this->path2inode(path, dir);
         if (inode == 0)
             return false;
         return this->create_file_inode(name, inode);
     }
 
     void ls(std::string path) {
-        u16 in = path2inode(path);
+        std::string name;
+        u16 in = path2inode(path, name);
         if (in == 0) {
             std::cout << "ls: cannot access \'" + path + "\': No such file or directory\n";
         }
         else {
             std::cout << path + ":\n";
-            this->list(in);
+            this->list(in, name);
         }
     }
 
