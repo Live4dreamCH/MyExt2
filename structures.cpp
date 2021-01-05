@@ -259,8 +259,17 @@ struct Inode
         }
     }
     //修改访问权限
-    void perm(char p) {
+    void set_access(char p) {
         i_mode = (i_mode & (u16)0xff00) + p;
+    }
+    char get_access() {
+        return i_mode & (u16)0x00ff;
+    }
+    void set_type(char type) {
+        i_mode = (i_mode & (u16)0x00ff) + type << 8;
+    }
+    char get_type() {
+        return i_mode & (u16)0xff00;
     }
     //读取时
     void access() {
