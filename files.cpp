@@ -6,6 +6,7 @@
 //#include <vector>
 #include <utility>
 #include <map>
+#include <iostream>
 
 class Dir;
 
@@ -24,6 +25,7 @@ protected:
     BitMap* inode_map = nullptr, * block_map = nullptr;
     Group_Descriptor* gd = nullptr;
     Dir* parent = nullptr;
+    std::map<u16, std::string>* fopen_table;
 
     u16 node_index = 0;
     Inode inode;
@@ -140,6 +142,7 @@ protected:
                 }
             }
             else {
+                std::cerr << "add_block(u16 block) out of range\n";
                 return false;
             }
             this->inode.i_blocks++;
@@ -149,6 +152,59 @@ protected:
             std::cerr << "add_block(u16 block) not open yet\n";
             return false;
         }
+    }
+
+    //减去一个索引号为node.i_blocks的数据块索引
+    bool sub_block() {
+        if (this->inode.i_blocks == 0) {
+            std::cerr << "sub_block() no block already!\n";
+            return false;
+        }
+        if (!this->has_open) {
+            l("sub_block(u16 block) not open yet!");
+            return false;
+        }
+
+        u16 index = this->inode.i_blocks - 1, blk;
+        if (index < 6) {
+            blk = this->inode.i_block[index];
+        }
+        else if (index < 6 + BlockSize / 2) {
+            IndexBlock i1;
+            index -= 6;
+            this->disk->read(this->inode.i_block[6] + DataBlockOffset, (char*)&i1);
+            blk = i1.index[index];
+
+            if (index == 0) {
+                this->block_map->reset_bit(this->inode.i_block[6]);
+                this->gd->free_blocks_count++;
+            }
+        }
+        else if (index < 6 + BlockSize / 2 + BlockSize * BlockSize / 4) {
+            IndexBlock i1, i2;
+            index -= 6 + BlockSize / 2;
+            this->disk->read(this->inode.i_block[7] + DataBlockOffset, (char*)&i1);
+            this->disk->read(i1.index[index / (BlockSize / 2)] + DataBlockOffset, (char*)&i2);
+            blk = i2.index[index % (BlockSize / 2)];
+
+            if (index == 0) {
+                this->block_map->reset_bit(i1.index[index / (BlockSize / 2)]);
+                this->block_map->reset_bit(this->inode.i_block[7]);
+                this->gd->free_blocks_count += 2;
+            }
+            else if (index % (BlockSize / 2) == 0) {
+                this->block_map->reset_bit(i1.index[index / (BlockSize / 2)]);
+                this->gd->free_blocks_count++;
+            }
+        }
+        else {
+            std::cerr << "sub_block(u16 block) out of range!\n";
+            return false;
+        }
+        this->block_map->reset_bit(blk);
+        this->gd->free_blocks_count++;
+        this->inode.i_blocks--;
+        return true;
     }
 
     //对某Inode节点node, 用索引号index, 获取一个数据块号
@@ -183,8 +239,8 @@ protected:
 
 public:
     //构造函数待定
-    File(DiskSim* dsk, BitMap* ino_map, BitMap* blk_map, Group_Descriptor* gdc, Dir* par)
-        :disk(dsk), inode_map(ino_map), block_map(blk_map), gd(gdc), parent(par) {}
+    File(DiskSim* dsk, BitMap* ino_map, BitMap* blk_map, Group_Descriptor* gdc, Dir* par, std::map<u16, std::string>* fot)
+        :disk(dsk), inode_map(ino_map), block_map(blk_map), gd(gdc), parent(par), fopen_table(fot) {}
 
     //File(u16 node_num, DiskSim* diskp, std::string fname)
     //    :node_index(node_num), disk(diskp), name(fname) {}
@@ -216,12 +272,12 @@ public:
     从磁盘获取inode
     修改访问时间
     */
-    bool open(std::map<u16, std::string>& fopen_table, std::string nm, u16 nodei){
+    bool open(std::string nm, u16 nodei){
         if (this->node_index == 0 || this->node_index >= BlockSize * 8) {
             std::cerr << "bool open() out of range\n";
             return false;
         }
-        fopen_table.insert({ nodei, nm });
+        this->fopen_table->insert({ nodei, nm });
         if (!this->read_inode(nodei)) {
             std::cerr << "bool open() read_inode fail\n";
             return false;
@@ -363,14 +419,73 @@ public:
     关闭:
     为写入缓冲区至硬盘, 在MyExt2::block_map, gd中申请/释放数据块
     将缓冲区写入各分散数据块中
-    并改变inode.size, 修改时间,访问时间等
+    并改变inode.size, i_blocks, 修改时间等
     写入inode
     删除MyExt2::fopen_table
     */
-    bool close(std::map<u16, std::string>& fopen_table){
-        //todo:1
-        fopen_table.erase(this->node_index);
-        return true;
+    bool close(){
+        if (this->has_open) {
+            if (this->dirty) {
+                u32 buf_blocks = ceiling(this->len) / BlockSize;
+                if (this->gd->free_blocks_count + this->inode.i_blocks < buf_blocks) {
+                    std::cerr << "bool File::close() no extra space!\n";
+                    delete this->buffer;
+                    return false;
+                }
+
+                if (buf_blocks > this->inode.i_blocks) {
+                    int blk = 0, need = buf_blocks - this->inode.i_blocks;
+                    u16 last_pos = this->get_block(this->inode.i_blocks - 1) + 1, query = need;
+                    do {
+                        blk = this->block_map->find_zeros(last_pos, query);
+                        if (blk >= 0) {
+                            for (int i = 0; i < query; i++) {
+                                if (!this->add_block(i + blk)) {
+                                    std::cerr << "add_block() failed\n";
+                                    delete this->buffer;
+                                    return false;
+                                }
+                            }
+                            need -= query;
+                            last_pos = blk + query;
+                            query = (query > need) ? need : query;
+                        }
+                        else {
+                            query = -blk - 1;
+                        }
+                    } while (need > 0);
+                }
+                else if (buf_blocks < this->inode.i_blocks) {
+                    for (int i = 0; i < this->inode.i_blocks - buf_blocks; i++) {
+                        this->sub_block();
+                    }
+                }
+
+                if (this->inode.i_blocks != buf_blocks) {
+                    l("bool file::close() did not set the right inode.i_blocks!");
+                    delete this->buffer;
+                    return false;
+                }
+
+                //写入
+                char* curr = this->buffer;
+                for (int i = 0; i < buf_blocks; i++) {
+                    this->disk->write(this->get_block(i) + DataBlockOffset, curr);
+                    curr += BlockSize;
+                }
+                this->dirty = false;
+                this->inode.modify(this->len);
+            }
+            delete this->buffer;
+            this->write_inode();
+            this->fopen_table->erase(this->node_index);
+            this->has_open = false;
+            return true;
+        }
+        else {
+            std::cerr << "bool File::close() not open yet!\n";
+            return false;
+        }
     }
     /*
     删除:
@@ -379,7 +494,22 @@ public:
     在父目录中删除此目录项
     */
     bool del(){
-        ;
+        if (!*this) {
+            l("nodei out of range");
+            return false;
+        }
+        if (this->has_open) {
+            delete this->buffer;
+            this->fopen_table->erase(this->node_index);
+            this->has_open = false;
+        }
+        while (this->inode.i_blocks > 0) {
+            this->sub_block();
+        }
+        this->inode_map->reset_bit(this->node_index);
+        this->gd->free_inodes_count++;
+        this->parent->remove(this->node_index);//todo:这波配和不是很好
+        return true;
     }
     operator bool()const {
         return !(this->node_index == 0 || this->node_index >= BlockSize * 8);
@@ -388,14 +518,22 @@ public:
 
 class Dir :public File {
 protected:
-    //目录项指针
+    //todo:目录项指针
+    //todo:对目录项位置的map buffer
 public:
     bool head(){}
     bool next(){}
     bool is_tail(){}
     DirEntry get_this(){}
     //change后如果原位不能存放,则可能移动其位置
-    bool change(DirEntry de) {}
+    bool set_this(DirEntry de) {}
     bool add(DirEntry de){}
     bool del_this(){}
+public:
+    //todo:更高级的api
+    DirEntry find(u16 nodei) {}
+    DirEntry find(std::string nm) {}
+    void list(){}
+    void get_all(){}
+    //... ...
 };
