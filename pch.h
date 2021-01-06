@@ -27,4 +27,5 @@ void l(std::string log) {
 已知缺陷:文件名中不能出现空格
 担心哪里没有改gd.free_x和gd.used_dirs_count, 以及inode和相应的两种map, 后期应检查
 补足注释
+写完,清空无用代码注释
 */

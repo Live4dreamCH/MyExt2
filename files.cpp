@@ -31,9 +31,9 @@ protected:
     Inode inode;
     std::string name = "";
 
-    char* buffer;
-    u32 len, buflen;
-    bool has_open = false, dirty = false;
+    char* buffer = nullptr;
+    u32 len = 0, buflen = 0;
+    bool has_open = false, dirty = false, has_read = false;
 
     //读取index号对应的inode索引结构
     bool read_inode(u16 nodei) {
@@ -242,13 +242,10 @@ public:
     File(DiskSim* dsk, BitMap* ino_map, BitMap* blk_map, Group_Descriptor* gdc, Dir* par, std::map<u16, std::string>* fot)
         :disk(dsk), inode_map(ino_map), block_map(blk_map), gd(gdc), parent(par), fopen_table(fot) {}
 
-    //File(u16 node_num, DiskSim* diskp, std::string fname)
-    //    :node_index(node_num), disk(diskp), name(fname) {}
-
     /*新建文件时要做什么:
     MyExt2::inode_map找一个空的nodei并占用
     MyExt2::gd.free_inodes_count--
-    (若是目录文件, MyExt2::gd.used_dirs_count++)
+    (若是目录文件, MyExt2::gd.used_dirs_count++, 并设. ..两项)
     构建一个inode并写入磁盘
     在父目录添加一个目录项
     */
@@ -312,7 +309,8 @@ public:
                 }
                 std::pair<const char*, u32> res = { (const char*)buf, this->len };
                 this->buffer = buf;
-                dirty = false;
+                this->dirty = false;
+                this->has_read = true;
                 return res;
             }
         }
@@ -327,10 +325,15 @@ public:
     将字符流写入缓冲区
     */
     bool write(char* str, u32 strlen){
-        if (has_open) {
+        if (this->has_open) {
+            if (!this->has_read) {
+                l("write() not read yet");
+                return false;
+            }
             if (strlen > this->buflen) {
                 u32 new_buflen = max<u32>(strlen * 3 / 2, ceiling(strlen));
-                delete this->buffer;
+                if (this->buflen)
+                    delete this->buffer;
                 this->buffer = new char[new_buflen];
                 this->buflen = new_buflen;
             }
@@ -349,6 +352,10 @@ public:
 
     bool append(char* str, u32 applen) {
         if (has_open) {
+            if (!this->has_read) {
+                l("append() not read yet");
+                return false;
+            }
             u32 strlen = applen + this->len;
             if (strlen > this->buflen) {
                 u32 new_buflen = max<u32>(strlen * 3 / 2, ceiling(strlen));
@@ -359,8 +366,9 @@ public:
                 for (int i = 0; i < applen; i++) {
                     *(new_buf + this->len + i) = *(str + i);
                 }
+                if (this->buflen)
+                    delete this->buffer;
                 this->buflen = new_buflen;
-                delete this->buffer;
                 this->buffer = new_buf;
             }
             else {
@@ -379,6 +387,11 @@ public:
     }
 
     bool change(char* str, u32 begin, u32 end) {
+        if (!this->has_read) {
+            l("change() not read yet");
+            return false;
+        }
+
         if (begin > end) {
             u32 temp = begin;
             begin = end;
@@ -477,6 +490,9 @@ public:
                 this->inode.modify(this->len);
             }
             delete this->buffer;
+            this->len = 0;
+            this->buflen = 0;
+            this->has_read = false;
             this->write_inode();
             this->fopen_table->erase(this->node_index);
             this->has_open = false;
@@ -508,7 +524,7 @@ public:
         }
         this->inode_map->reset_bit(this->node_index);
         this->gd->free_inodes_count++;
-        this->parent->remove(this->node_index);//todo:这波配和不是很好
+        this->parent->remove(this->node_index);
         return true;
     }
     operator bool()const {
@@ -518,22 +534,97 @@ public:
 
 class Dir :public File {
 protected:
-    //todo:目录项指针
-    //todo:对目录项位置的map buffer
+    //目录项指针
+    int offset = 0, end = -1, max = -1;
+    DirEntry temp;
+    u16 recl = 0;
+    //对目录项位置的map buffer
+    std::map<std::string, u16> name2nodei;
+    std::map<u16, u32> nodei2pos;
 public:
-    bool head(){}
-    bool next(){}
+    //对继承方法的修改
+    bool create(std::string nm, Inode ino) {
+        if(!File::create(nm, ino))
+            return false;
+        this->gd->used_dirs_count++;
+        int blk;
+        blk = this->block_map->find_zeros(0, 1);
+        if (blk < 0) {
+            l("create ./ ../ fail:no block!");
+            return false;
+        }
+        DirEntry p(this->node_index, this->name, 2), pp(this->parent->node_index, this->parent->name, 2);
+        char b[BlockSize] = { 0 };
+        char* bp = b;
+        *((DirEntry*)bp) = p;
+        bp += p.rec_len;
+        *((DirEntry*)bp) = pp;
+        this->disk->write(blk + DataBlockOffset, b);
+        return true;
+    }
+
+    bool del() {
+        if (!File::del())
+            return false;
+        this->gd->used_dirs_count--;
+        return true;
+    }
+public:
+    //低级api
+    bool ready() {
+        if (!this->has_open) {
+            l("dir not open yet!");
+            return false;
+        }
+        if (!this->has_read) {
+            l("dir not read yet!");
+            return false;
+        }
+        return true;
+    }
+    bool head(){
+        if (!this->ready())
+            return false;
+        this->offset = 0;
+        if (!this->temp.is_alive(this->buffer, recl)) {
+            l("a dir without ./");
+            return false;
+        }
+        this->temp.init(this->buffer);
+        this->name2nodei.insert({ this->temp.name, this->temp.inode });
+        this->nodei2pos.insert({ this->temp.inode, 0 });
+        if (max < 0)
+            max = 0;
+        return true;
+    }
+    bool next(){
+        if (!this->ready())
+            return false;
+        char* n = this->temp.next_head(this->buffer + this->offset, (int)this->len - this->offset);
+        if (n == nullptr) {
+            this->end = this->offset;
+            return false;
+        }
+        //todo:到这
+    }
     bool is_tail(){}
     DirEntry get_this(){}
     //change后如果原位不能存放,则可能移动其位置
     bool set_this(DirEntry de) {}
-    bool add(DirEntry de){}
     bool del_this(){}
 public:
-    //todo:更高级的api
+    Dir(DiskSim* dsk, BitMap* ino_map, BitMap* blk_map, Group_Descriptor* gdc, Dir* par, std::map<u16, std::string>* fot)
+        :File(dsk, ino_map, blk_map, gdc, par, fot) {}
+    //更高级的api
+    bool add(DirEntry de) {}
+    bool remove(u16 nodei){}
+    bool remove(std::string nm) {}
     DirEntry find(u16 nodei) {}
     DirEntry find(std::string nm) {}
-    void list(){}
-    void get_all(){}
+    bool change_de(std::string nm, DirEntry de){}
+    bool change_de(u16 nodei, DirEntry de) {}
+    void list() {}
+    void get_all() {}
+
     //... ...
 };
