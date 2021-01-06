@@ -4,6 +4,7 @@
 #include <iostream>
 #include <ctime>
 #include <fstream>
+#include <utility>
 
 //文件系统的数据结构及其相关操作
 //硬盘上的"静态的"文件系统
@@ -291,6 +292,20 @@ struct Inode
             i_block[i] = 0;
         }
     }
+
+    void print() {
+        u16 type = (i_mode >> 8) & 0x00ff;
+        if (type == 2) {
+            //todo:1
+        }
+        else {
+            char rwx[4] = "---", d = '-';
+            rwx[2] = (i_mode & (0x0001 << 0)) == 1 ? 'x' : '-';
+            rwx[1] = (i_mode & (0x0001 << 1)) == 1 ? 'w' : '-';
+            rwx[0] = (i_mode & (0x0001 << 2)) == 1 ? 'r' : '-';
+            std::cout << d << rwx << ' ' << i_size << '\t' << ctime((time_t*)&(i_mtime));
+        }
+    }
 };
 
 //目录文件内容中的一项
@@ -315,12 +330,11 @@ struct DirEntry
     //判断一段二进制字节流是否为正确存在的目录项
     //若此目录项inode为0, 返回false, rec_len不变
     //若此目录项inode为1, 返回true, rec_len置为此目录项的rec_len
-    bool is_alive(char* head, u16& rec_len) {
+    std::pair<bool, u16> is_alive(char* head) {
         u16* test = (u16*)head;
         if (*test == 0)
-            return false;
-        rec_len = *(++test);
-        return true;
+            return { false, *(++test) };
+        return { true, *(++test) };
     }
 
     //从二进制数据中建立结构, 返回可能存在的下一项的首地址

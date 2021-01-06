@@ -12,7 +12,7 @@
 class MyExt2
 {
     DiskSim disk;
-    std::map<u16, std::string> fopen_table;//文件打开表
+    std::map<u16, File*> fopen_table;//文件打开表
     u16 current_dir = 0;//当前目录(索引结点）
     std::string current_path = "";//当前路径(字符串) 
     Group_Descriptor gdcache;//组描述符的内存缓存
@@ -367,6 +367,10 @@ public:
 
     ~MyExt2()
     {
+        for (auto it = fopen_table.begin(); it != fopen_table.end(); it++) {
+            if (!it->second->close())
+                l("close fail!may lose data!");
+        }
         disk.write(0, (const char*)&gdcache);
         disk.write(gdcache.block_bitmap, block_map.pointer());
         disk.write(gdcache.inode_bitmap, inode_map.pointer());

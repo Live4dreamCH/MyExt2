@@ -25,7 +25,7 @@ protected:
     BitMap* inode_map = nullptr, * block_map = nullptr;
     Group_Descriptor* gd = nullptr;
     Dir* parent = nullptr;
-    std::map<u16, std::string>* fopen_table;
+    std::map<u16, File*>* fopen_table;
 
     u16 node_index = 0;
     Inode inode;
@@ -239,7 +239,7 @@ protected:
 
 public:
     //构造函数待定
-    File(DiskSim* dsk, BitMap* ino_map, BitMap* blk_map, Group_Descriptor* gdc, Dir* par, std::map<u16, std::string>* fot)
+    File(DiskSim* dsk, BitMap* ino_map, BitMap* blk_map, Group_Descriptor* gdc, Dir* par, std::map<u16, File*>* fot)
         :disk(dsk), inode_map(ino_map), block_map(blk_map), gd(gdc), parent(par), fopen_table(fot) {}
 
     /*新建文件时要做什么:
@@ -274,7 +274,7 @@ public:
             std::cerr << "bool open() out of range\n";
             return false;
         }
-        this->fopen_table->insert({ nodei, nm });
+        this->fopen_table->insert({ nodei, this });
         if (!this->read_inode(nodei)) {
             std::cerr << "bool open() read_inode fail\n";
             return false;
@@ -530,17 +530,24 @@ public:
     operator bool()const {
         return !(this->node_index == 0 || this->node_index >= BlockSize * 8);
     }
+
+    bool print() {
+        if (!this->has_open) {
+            std::cerr << "bool File::print() not open yet!\n";
+            return false;
+        }
+        this->inode.print();
+        std::cout << '\n';
+        return true;
+    }
 };
 
+//管理DirEntry
 class Dir :public File {
 protected:
     //目录项指针
-    int offset = 0, end = -1, max = -1;
+    int offset = 0, end = -1;
     DirEntry temp;
-    u16 recl = 0;
-    //对目录项位置的map buffer
-    std::map<std::string, u16> name2nodei;
-    std::map<u16, u32> nodei2pos;
 public:
     //对继承方法的修改
     bool create(std::string nm, Inode ino) {
@@ -569,7 +576,7 @@ public:
         this->gd->used_dirs_count--;
         return true;
     }
-public:
+protected:
     //低级api
     bool ready() {
         if (!this->has_open) {
@@ -586,45 +593,167 @@ public:
         if (!this->ready())
             return false;
         this->offset = 0;
-        if (!this->temp.is_alive(this->buffer, recl)) {
+        if (!this->temp.is_alive(this->buffer).first) {
             l("a dir without ./");
             return false;
         }
-        this->temp.init(this->buffer);
-        this->name2nodei.insert({ this->temp.name, this->temp.inode });
-        this->nodei2pos.insert({ this->temp.inode, 0 });
-        if (max < 0)
-            max = 0;
         return true;
     }
     bool next(){
         if (!this->ready())
             return false;
-        char* n = this->temp.next_head(this->buffer + this->offset, (int)this->len - this->offset);
-        if (n == nullptr) {
-            this->end = this->offset;
+        if (end != -1 && offset == end)
+            return false;
+        while(true) {
+            char* n = this->temp.next_head(this->buffer + this->offset, this->len - this->offset);
+            if (n == nullptr) {
+                this->end = this->offset;
+                return false;
+            }
+            auto r = this->temp.is_alive(n);
+            if (r.second < 7 || r.second>261) {
+                this->end = this->offset;
+                return false;
+            }
+            if (r.first) {
+                this->offset = n - this->buffer;
+                return true;
+            }
+        }
+    }
+    bool alive() {
+        if (!this->ready())
+            return false;
+        auto r = temp.is_alive(buffer + offset);
+        if (r.second < 7 || r.second>261) {
             return false;
         }
-        //todo:到这
+        return r.first;
     }
-    bool is_tail(){}
-    DirEntry get_this(){}
+    DirEntry get_this(){
+        temp.init(buffer + offset);
+        return temp;
+    }
     //change后如果原位不能存放,则可能移动其位置
-    bool set_this(DirEntry de) {}
-    bool del_this(){}
+    bool set_this(DirEntry de) {
+        if (!this->ready())
+            return false;
+        temp.init(buffer+offset);
+        if (de.rec_len <= temp.rec_len) {
+            de.rec_len = temp.rec_len;
+            change((char*)&de, offset, offset + de.rec_len);
+            return true;
+        }
+        else {
+            del_this();
+            return add(de);
+        }
+    }
+    bool del_this(){
+        if (!this->ready())
+            return false;
+        int off = this->offset;
+        if (next())
+            offset = off;
+        else
+            end = -1;
+        u16* nodi = (u16*)(buffer + offset);
+        if (*nodi == node_index || *nodi == parent->node_index) {
+            l("cannot remove ./ or ../");
+            return false;
+        }
+        *nodi = 0;
+        offset = 0;
+        return true;
+    }
+    bool _find(u16 nodei) {
+        if (!this->ready())
+            return false;
+        head();
+        do {
+            temp.init(buffer + offset);
+            if (temp.inode == nodei) {
+                return true;
+            }
+        } while (next());
+        l("no such de to remove!");
+        return false;
+    }
+    bool _find(std::string nm) {
+        if (!this->ready())
+            return false;
+        head();
+        do {
+            temp.init(buffer + offset);
+            if (nm == temp.name)
+                return true;
+        } while (next());
+        l("no such de to remove!");
+        return false;
+    }
 public:
-    Dir(DiskSim* dsk, BitMap* ino_map, BitMap* blk_map, Group_Descriptor* gdc, Dir* par, std::map<u16, std::string>* fot)
+    Dir(DiskSim* dsk, BitMap* ino_map, BitMap* blk_map, Group_Descriptor* gdc, Dir* par, std::map<u16, File*>* fot)
         :File(dsk, ino_map, blk_map, gdc, par, fot) {}
     //更高级的api
-    bool add(DirEntry de) {}
-    bool remove(u16 nodei){}
-    bool remove(std::string nm) {}
-    DirEntry find(u16 nodei) {}
-    DirEntry find(std::string nm) {}
-    bool change_de(std::string nm, DirEntry de){}
-    bool change_de(u16 nodei, DirEntry de) {}
-    void list() {}
-    void get_all() {}
+    bool add(DirEntry de) {
+        if (!this->ready())
+            return false;
 
-    //... ...
+        if (end == -1) {
+            while (next());
+        }
+        temp.init(buffer + end);
+        return change((char*)&de, end + temp.rec_len, end + temp.rec_len + de.rec_len);
+    }
+    bool remove(u16 nodei){
+        if (!_find(nodei))
+            return false;
+        del_this();
+        return true;
+    }
+    bool remove(std::string nm) {
+        if (!_find(nm))
+            return false;
+        del_this();
+        return true;
+    }
+    std::pair<bool, DirEntry> find(u16 nodei) {
+        if (!_find(nodei))
+            return { false, DirEntry() };
+        return { true,get_this() };
+    }
+    std::pair<bool, DirEntry> find(std::string nm) {
+        if (!_find(nm))
+            return { false, DirEntry() };
+        del_this();
+        return { true,get_this() };
+    }
+    bool change_de(std::string nm, DirEntry de){
+        if (!_find(nm))
+            return false;
+        set_this(de);
+        return true;
+    }
+    bool change_de(u16 nodei, DirEntry de) {
+        if (!_find(nodei))
+            return false;
+        set_this(de);
+        return true;
+    }
+    bool print() {
+        if (!this->ready())
+            return false;
+        Inode store = inode;
+        head();
+        do {
+            temp.init(buffer + offset);
+            read_inode(temp.inode);
+            inode.print();
+            std::cout << '\t' << temp.name << '\n';
+        } while (next());
+        inode = store;
+        return true;
+    }
+    //void get_all() {}
+
 };
