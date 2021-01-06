@@ -267,7 +267,7 @@ struct Inode
         return i_mode & (u16)0x00ff;
     }
     void set_type(char type) {
-        i_mode = (i_mode & (u16)0x00ff) + type << 8;
+        i_mode = (i_mode & (u16)0x00ff) + (type << 8);
     }
     char get_type() {
         return i_mode & (u16)0xff00;
@@ -299,11 +299,12 @@ struct Inode
             //todo:1
         }
         else {
-            char rwx[4] = "---", d = '-';
+            char rwx[4] = "---", d = '-', buff[26];
             rwx[2] = (i_mode & (0x0001 << 0)) == 1 ? 'x' : '-';
             rwx[1] = (i_mode & (0x0001 << 1)) == 1 ? 'w' : '-';
             rwx[0] = (i_mode & (0x0001 << 2)) == 1 ? 'r' : '-';
-            std::cout << d << rwx << ' ' << i_size << '\t' << ctime((time_t*)&(i_mtime));
+            ctime_s(buff, sizeof buff, (time_t*)&(i_mtime));
+            std::cout << d << rwx << ' ' << i_size << '\t' << buff;
         }
     }
 };

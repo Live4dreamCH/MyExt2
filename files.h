@@ -248,7 +248,7 @@ public:
     构建一个inode并写入磁盘
     在父目录添加一个目录项
     */
-    bool create(std::string nm, Inode ino){
+    bool create(std::string nm, Inode ino) {
         int nodei = this->inode_map->find_zeros(1, 1);
         if (nodei <= 0) {
             std::cerr << "inode full! create fail\n";
@@ -268,7 +268,7 @@ public:
     从磁盘获取inode
     修改访问时间
     */
-    bool open(std::string nm, u16 nodei, Dir* pa){
+    bool open(std::string nm, u16 nodei, Dir* pa) {
         if (this->node_index == 0 || this->node_index >= BlockSize * 8) {
             std::cerr << "bool open() out of range\n";
             return false;
@@ -291,12 +291,12 @@ public:
     将文件分散在各数据块的内容连接起来, 放在缓冲区里
     返回头指针和长度
     */
-    std::pair<const char*, u32> read(){
+    std::pair<const char*, u32> read() {
         if (has_open) {
             if (this->dirty) {
                 return { (const char*)this->buffer, this->len };
             }
-            else{
+            else {
                 this->len = this->inode.i_size;
                 this->buflen = max<u32>(this->inode.i_blocks * BlockSize, this->len * 3 / 2);
                 char* buf = new char[this->buflen];
@@ -324,7 +324,7 @@ public:
     输入字符指针和长度
     将字符流写入缓冲区
     */
-    bool write(char* str, u32 strlen){
+    bool write(char* str, u32 strlen) {
         if (this->has_open) {
             if (!this->has_read) {
                 l("write() not read yet");
@@ -436,7 +436,7 @@ public:
     写入inode
     删除MyExt2::fopen_table
     */
-    bool close(){
+    bool close() {
         if (this->has_open) {
             if (this->dirty) {
                 u32 buf_blocks = ceiling(this->len) / BlockSize;
@@ -509,7 +509,7 @@ public:
     重置此inode
     在父目录中删除此目录项
     */
-    bool del(){
+    bool del() {
         if (!*this) {
             l("nodei out of range");
             return false;
@@ -551,7 +551,7 @@ protected:
 public:
     //对继承方法的修改
     bool create(std::string nm, Inode ino) {
-        if(!File::create(nm, ino))
+        if (!File::create(nm, ino))
             return false;
         this->gd->used_dirs_count++;
         int blk;
@@ -589,7 +589,7 @@ protected:
         }
         return true;
     }
-    bool head(){
+    bool head() {
         if (!this->ready())
             return false;
         this->offset = 0;
@@ -599,12 +599,12 @@ protected:
         }
         return true;
     }
-    bool next(){
+    bool next() {
         if (!this->ready())
             return false;
         if (end != -1 && offset == end)
             return false;
-        while(true) {
+        while (true) {
             char* n = this->temp.next_head(this->buffer + this->offset, (u64)this->len - this->offset);
             if (n == nullptr) {
                 this->end = this->offset;
@@ -630,7 +630,7 @@ protected:
         }
         return r.first;
     }
-    DirEntry get_this(){
+    DirEntry get_this() {
         temp.init(buffer + offset);
         return temp;
     }
@@ -638,7 +638,7 @@ protected:
     bool set_this(DirEntry de) {
         if (!this->ready())
             return false;
-        temp.init(buffer+offset);
+        temp.init(buffer + offset);
         if (de.rec_len <= temp.rec_len) {
             de.rec_len = temp.rec_len;
             change((char*)&de, offset, offset + de.rec_len);
@@ -649,7 +649,7 @@ protected:
             return add(de);
         }
     }
-    bool del_this(){
+    bool del_this() {
         if (!this->ready())
             return false;
         int off = this->offset;
@@ -705,7 +705,7 @@ public:
         temp.init(buffer + end);
         return change((char*)&de, end + temp.rec_len, end + temp.rec_len + de.rec_len);
     }
-    bool remove(u16 nodei){
+    bool remove(u16 nodei) {
         if (!_find(nodei))
             return false;
         del_this();
@@ -728,7 +728,7 @@ public:
         del_this();
         return { true,get_this() };
     }
-    bool change_de(std::string nm, DirEntry de){
+    bool change_de(std::string nm, DirEntry de) {
         if (!_find(nm))
             return false;
         set_this(de);
