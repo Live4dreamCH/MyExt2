@@ -14,9 +14,7 @@ constexpr u16 InodePerBlock = BlockSize / 64;
 constexpr u16 DataBlockOffset = 1 + 1 + 1 + InodeSize * 8;
 
 
-void l(std::string log) {
-    std::cerr << log << '\n';
-}
+void l(std::string log);
 
 //定义:磁盘块号从0开始, 如组描述符的块号就为0
 //索引节点(inode)号从1开始, 如根目录的inode就为1

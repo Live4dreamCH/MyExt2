@@ -98,6 +98,9 @@ int main(int argc, char* argv[])
             }
         }
         else if (token == "cd") {
+            if (++it == end) {
+                continue;
+            }
             std::cout << "2\n";
         }
         else if (token == "mkdir") {
