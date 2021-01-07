@@ -81,6 +81,22 @@ class MyExt2
                 path.pop_back();
             re.parent = parent->get_nodei();
         }
+
+        std::string old;
+        std::regex again("/\\./");
+        std::regex up("/[^/]*/\\.\\./");
+        do {
+            old = path;
+            path = std::regex_replace(path, again, "/");
+        } while (old != path);
+
+        while (path.substr(0, 4) == "/../") {
+            path.erase(1, 3);
+        }
+        do {
+            old = path;
+            path = std::regex_replace(path, up, "/");
+        } while (old != path);
         re.path = path;
         re.dir = is_dir;
         re.succ = true;

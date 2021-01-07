@@ -55,11 +55,33 @@ void test_features() {
     //char cn[100] = "Hello!";
     //char* pt = cn;
     //std::cout << (sn == pt);
+
+    std::string path, old;
+    std::regex again("/\\./");
+    std::regex up("/[^/]*/\\.\\./");
+    while (true) {
+        std::cout << "input:$ ";
+        std::cin >> path;
+        do {
+            old = path;
+            path = std::regex_replace(path, again, "/");
+        } while (old != path);
+
+        while (path.substr(0, 4) == "/../") {
+            path.erase(1, 3);
+        }
+        do {
+            old = path;
+            path = std::regex_replace(path, up, "/");
+        } while (old != path);
+        l(path);
+        l("");
+    }
 }
 
 int main(int argc, char* argv[])
 {
-    test_features();
+    //test_features();
 
     MyExt2 test;
     while (!test.is_formatted()) {
