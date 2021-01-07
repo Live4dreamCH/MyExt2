@@ -14,6 +14,7 @@ struct Res
     std::string name = "";
     u16 parent = 0;
     bool dir = false;
+    std::string path = "";
 };
 
 //文件系统的内存数据结构及操作
@@ -33,7 +34,7 @@ class MyExt2
     //将一个path转换为inode号, 此path不能为空串
     //失败返回0, 一个错误的inode号
     //若成功, name值为文件名
-    Res path2inode(std::string path, std::string& name) {
+    Res path2inode(std::string path) {
         if (path[0] != '/')
             path = current_path + path;
         std::regex split("/");
@@ -44,6 +45,7 @@ class MyExt2
         *parent = *rootdir;
         bool is_dir = true;
         std::pair<bool, DirEntry> n;
+        std::string name;
         while (++it != end)
         {
             name = it->str();
@@ -69,10 +71,17 @@ class MyExt2
         }
         re.name = name;
         re.nodei = n.second.inode;
-        if (is_dir)
+        if (is_dir) {
+            if (path.back() != '/')
+                path.push_back('/');
             re.parent = pp.get_nodei();
-        else
+        }
+        else {
+            if (path.back() == '/')
+                path.pop_back();
             re.parent = parent->get_nodei();
+        }
+        re.path = path;
         re.dir = is_dir;
         re.succ = true;
         return re;
@@ -158,10 +167,8 @@ public:
         file = new Dir(&disk, &inode_map, &block_map, &gdcache, rootdir, &fopen_table);
     }
 
-
     void ls(std::string path) {
-        std::string name;
-        Res in = path2inode(path, name);
+        Res in = path2inode(path);
         if (!in.succ) {
             std::cout << "ls: cannot access \'" + path + "\': No such file or directory\n";
         }
@@ -176,15 +183,24 @@ public:
             }
         }
     }
+    void cd(std::string path) {
+        Res in = path2inode(path);
+        if (!in.succ) {
+            std::cout << "cd: cannot access \'" + path + "\': No such file or directory\n";
+        }
+        else {
+            if (in.dir) {
+                current_dir = in.nodei;
+                current_path = in.path;
+            }
+            else {
+                l("cd: \'" + path + "\': not a directory");
+            }
+        }
+    }
 
     ~MyExt2()
     {
-        //auto it = fopen_table.begin();
-        //while (it != fopen_table.end())
-        //{
-        //    if (it != fopen_table.end())
-        //        it++;
-        //}
         while (fopen_table.size() > 0) {
             auto it = fopen_table.begin();
             if (!it->second->close())

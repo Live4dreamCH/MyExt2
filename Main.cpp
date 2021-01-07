@@ -97,13 +97,13 @@ int main(int argc, char* argv[])
                 } while (++it != end);
             }
         }
-        //else if (token == "cd") {
-        //    if (++it == end) {
-        //        continue;
-        //    }
-        //    token = it->str();
-        //    test.cd(token);
-        //}
+        else if (token == "cd") {
+            if (++it == end) {
+                continue;
+            }
+            token = it->str();
+            test.cd(token);
+        }
         //else if (token == "mkdir") {
         //    if (++it == end) {
         //        l("mkdir: missing operand");
