@@ -46,7 +46,12 @@ class MyExt2
         bool is_dir = true;
         std::pair<bool, DirEntry> n;
         std::string name;
-        while (++it != end)
+        if (++it == end) {
+            name = "/";
+            n.second.inode = 1;
+        }
+        parent->open(name, 1, rootdir);
+        while (it != end)
         {
             name = it->str();
             if (!is_dir) {
@@ -68,6 +73,7 @@ class MyExt2
                 parent->close();
                 parent->open(name, n.second.inode, &pp);
             }
+            ++it;
         }
         re.name = name;
         re.nodei = n.second.inode;
@@ -116,7 +122,7 @@ public:
             rootdir = new Dir(&disk, &inode_map, &block_map, &gdcache, nullptr, &fopen_table);
             rootdir->open("/", 1, rootdir);
             parent = new Dir(&disk, &inode_map, &block_map, &gdcache, rootdir, &fopen_table);
-            file = new Dir(&disk, &inode_map, &block_map, &gdcache, rootdir, &fopen_table);
+            file = new File(&disk, &inode_map, &block_map, &gdcache, rootdir, &fopen_table);
         }
     }
 
@@ -136,6 +142,7 @@ public:
     //数据全部清零, 重置控制字段, 并初始化根目录, 及其他杂项
     void format(std::string vn) {
         disk.clear();
+        fopen_table.clear();
 
         Group_Descriptor gd;
         vn.copy(gd.volume_name, sizeof(gd.volume_name)-1);
@@ -150,7 +157,7 @@ public:
         //新建根目录
         Inode root_inode(2, 7);
         root_inode.i_blocks = 1;
-        root_inode.i_size = 64 * 2;
+        root_inode.i_size = 17;
         root_inode.i_block[0] = 0;
         //this->set_inode(root_inode, 1);
         char block[BlockSize] = { 0 };
@@ -180,7 +187,7 @@ public:
         rootdir = new Dir(&disk, &inode_map, &block_map, &gdcache, nullptr, &fopen_table);
         rootdir->open("/", 1, rootdir);
         parent = new Dir(&disk, &inode_map, &block_map, &gdcache, rootdir, &fopen_table);
-        file = new Dir(&disk, &inode_map, &block_map, &gdcache, rootdir, &fopen_table);
+        file = new File(&disk, &inode_map, &block_map, &gdcache, rootdir, &fopen_table);
     }
 
     void ls(std::string path) {
@@ -199,6 +206,7 @@ public:
             }
         }
     }
+
     void cd(std::string path) {
         Res in = path2inode(path);
         if (!in.succ) {
@@ -213,6 +221,34 @@ public:
                 l("cd: \'" + path + "\': not a directory");
             }
         }
+    }
+
+    void mkdir(std::string path) {
+        if (path2inode(path).succ) {
+            l("mkdir: " + path + " already exist!");
+            return;
+        }
+        if (path[0] != '/')
+            path = current_path + path;
+        std::regex split("/");
+        std::sregex_token_iterator end;
+        std::sregex_token_iterator it(path.begin(), path.end(), split, -1);
+        std::string name;
+        while (it != end) {
+            name = it->str();
+            it++;
+        }
+        if (path.back() == '/') {
+            path.pop_back();
+        }
+        path.resize(path.size() - name.size());
+        Res in = path2inode(path);
+        parent->read();
+        Dir mk(&disk, &inode_map, &block_map, &gdcache, parent, &fopen_table);
+        Inode ino(2);
+        mk.create(name, ino);
+        //mk.close();
+        parent->close();
     }
 
     ~MyExt2()

@@ -136,6 +136,8 @@ public:
     //置pos位为1
     void set_bit(u16 pos) {
         pos -= start;
+        if (pos >=4096)
+            l("-1 for uint!");
         u64 t = 0x01;
         bits[pos / 64] |= t << (pos % 64);
     }
@@ -143,6 +145,8 @@ public:
     //重置pos位为0
     void reset_bit(u16 pos) {
         pos -= start;
+        if (pos >= 4096)
+            l("-1 for uint!");
         u64 t = 0x01;
         bits[pos / 64] &= ~(t << (pos % 64));
     }
@@ -155,6 +159,8 @@ public:
     //取某一位的值
     bool get_bit(u16 pos) {
         pos -= start;
+        if (pos >= 4096)
+            l("-1 for uint!");
         u64 t = (u64)0x01 << (pos % 64);
         return bool(bits[pos / 64] & t);
     }
@@ -166,10 +172,12 @@ public:
         if (n == 0)
             return pos;
         pos -= start;
+        if (pos == 65535)
+            l("-1 for uint!");
         int curr = 0, max = 0;
         for (u16 i = pos; i < BlockSize * 8; i++)
         {
-            if (this->get_bit(i)) {
+            if (this->get_bit(i+start)) {
                 if (max < curr)
                     max = curr;
                 curr = 0;
@@ -178,7 +186,7 @@ public:
                 curr++;
                 if (curr == n) {
                     for (int j = i - n + 1; j <= i; j++) {
-                        this->set_bit(j);
+                        this->set_bit(j + start);
                     }
                     return i - n + 1 + start;
                 }
@@ -187,7 +195,7 @@ public:
         curr = 0;
         for (u16 i = 0; i < pos; i++)
         {
-            if (this->get_bit(i)) {
+            if (this->get_bit(i + start)) {
                 if (max < curr)
                     max = curr;
                 curr = 0;
@@ -196,7 +204,7 @@ public:
                 curr++;
                 if (curr == n) {
                     for (int j = i - n + 1; j <= i; j++) {
-                        this->set_bit(j);
+                        this->set_bit(j + start);
                     }
                     return i - n + 1 + start;
                 }
@@ -270,7 +278,7 @@ struct Inode
         i_mode = (i_mode & (u16)0x00ff) + (type << 8);
     }
     char get_type() {
-        return i_mode & (u16)0xff00;
+        return (i_mode & (u16)0xff00) >> 8;
     }
     //读取时
     void access() {

@@ -36,47 +36,47 @@ void test_features() {
     //a.copy(b, sizeof b);
     //std::cout << b;
 
-    //std::string command, token;
-    //std::regex whites("/");
-    //std::sregex_token_iterator end;
-    //while (true)
-    //{
-    //    std::cout << "$ ";
-    //    std::getline(std::cin, command);
-    //    std::sregex_token_iterator it(command.begin(), command.end(), whites, -1);
-    //    while (it != end)
-    //    {
-    //        std::cout << it->str() << '\n';
-    //        it++;
-    //    }
-    //}
+    std::string command, token;
+    std::regex whites("/");
+    std::sregex_token_iterator end;
+    while (true)
+    {
+        std::cout << "$ ";
+        std::getline(std::cin, command);
+        std::sregex_token_iterator it(command.begin(), command.end(), whites, -1);
+        while (it != end)
+        {
+            std::cout << it->str() << '\n';
+            it++;
+        }
+    }
 
     //std::string sn = "Hello!";
     //char cn[100] = "Hello!";
     //char* pt = cn;
     //std::cout << (sn == pt);
 
-    std::string path, old;
-    std::regex again("/\\./");
-    std::regex up("/[^/]*/\\.\\./");
-    while (true) {
-        std::cout << "input:$ ";
-        std::cin >> path;
-        do {
-            old = path;
-            path = std::regex_replace(path, again, "/");
-        } while (old != path);
+    //std::string path, old;
+    //std::regex again("/\\./");
+    //std::regex up("/[^/]*/\\.\\./");
+    //while (true) {
+    //    std::cout << "input:$ ";
+    //    std::cin >> path;
+    //    do {
+    //        old = path;
+    //        path = std::regex_replace(path, again, "/");
+    //    } while (old != path);
 
-        while (path.substr(0, 4) == "/../") {
-            path.erase(1, 3);
-        }
-        do {
-            old = path;
-            path = std::regex_replace(path, up, "/");
-        } while (old != path);
-        l(path);
-        l("");
-    }
+    //    while (path.substr(0, 4) == "/../") {
+    //        path.erase(1, 3);
+    //    }
+    //    do {
+    //        old = path;
+    //        path = std::regex_replace(path, up, "/");
+    //    } while (old != path);
+    //    l(path);
+    //    l("");
+    //}
 }
 
 int main(int argc, char* argv[])
@@ -126,16 +126,16 @@ int main(int argc, char* argv[])
             token = it->str();
             test.cd(token);
         }
-        //else if (token == "mkdir") {
-        //    if (++it == end) {
-        //        l("mkdir: missing operand");
-        //        continue;
-        //    }
-        //    do {
-        //        token = it->str();
-        //        test.mkdir(token);
-        //    } while (++it != end);
-        //}
+        else if (token == "mkdir") {
+            if (++it == end) {
+                l("mkdir: missing operand");
+                continue;
+            }
+            do {
+                token = it->str();
+                test.mkdir(token);
+            } while (++it != end);
+        }
         //else if (token == "create") {
         //    if (++it == end) {
         //        l("create: missing operand");

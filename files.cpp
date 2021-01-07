@@ -350,6 +350,7 @@ bool File::change(char* str, u32 begin, u32 end) {
         for (int i = 0; i < end - begin; i++) {
             *(this->buffer + begin + i) = *(str + i);
         }
+        this->dirty = true;
         return true;
     }
     else if (begin == this->len) {
@@ -441,6 +442,7 @@ bool File::close() {
     }
     else {
         std::cerr << "bool File::close() not open yet!\n";
+        this->fopen_table->erase(this->node_index);
         return false;
     }
 }
@@ -488,13 +490,17 @@ bool Dir::create(std::string nm, Inode ino) {
         l("create ./ ../ fail:no block!");
         return false;
     }
-    DirEntry p(this->node_index, this->name, 2), pp(this->parent->node_index, this->parent->name, 2);
+    DirEntry p(this->node_index, ".", 2), pp(this->parent->node_index, "..", 2);
     char b[BlockSize] = { 0 };
     char* bp = b;
     *((DirEntry*)bp) = p;
     bp += p.rec_len;
     *((DirEntry*)bp) = pp;
     this->disk->write(blk + DataBlockOffset, b);
+    this->inode.i_size = p.rec_len + pp.rec_len;
+    this->inode.i_blocks = 1;
+    this->inode.i_block[0] = blk;
+    this->write_inode();
     return true;
 }
 
@@ -622,7 +628,7 @@ bool Dir::_find(std::string nm) {
         if (nm == temp.name)
             return true;
     } while (next());
-    l("no such de to remove!");
+    l("no such de!");
     return false;
 }
 
