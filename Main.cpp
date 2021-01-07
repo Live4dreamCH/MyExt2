@@ -97,33 +97,80 @@ int main(int argc, char* argv[])
                 } while (++it != end);
             }
         }
-        else if (token == "cd") {
-            if (++it == end) {
-                continue;
-            }
-            std::cout << "2\n";
-        }
-        else if (token == "mkdir") {
-            std::cout << "3\n";
-        }
-        else if (token == "create") {
-            std::cout << "4\n";
-        }
-        else if (token == "rm") {
-            std::cout << "5\n";
-        }
-        else if (token == "cat") {
-            std::cout << "6\n";
-        }
-        else if (token == "edit") {
-            std::cout << "7\n";
-        }
+        //else if (token == "cd") {
+        //    if (++it == end) {
+        //        continue;
+        //    }
+        //    token = it->str();
+        //    test.cd(token);
+        //}
+        //else if (token == "mkdir") {
+        //    if (++it == end) {
+        //        l("mkdir: missing operand");
+        //        continue;
+        //    }
+        //    do {
+        //        token = it->str();
+        //        test.mkdir(token);
+        //    } while (++it != end);
+        //}
+        //else if (token == "create") {
+        //    if (++it == end) {
+        //        l("create: missing operand");
+        //        continue;
+        //    }
+        //    do {
+        //        token = it->str();
+        //        test.create(token);
+        //    } while (++it != end);
+        //}
+        //else if (token == "rm") {
+        //    if (++it == end) {
+        //        l("rm: missing operand");
+        //        continue;
+        //    }
+        //    do {
+        //        token = it->str();
+        //        test.rm(token);
+        //    } while (++it != end);
+        //}
+        //else if (token == "read") {
+        //    if (++it == end) {
+        //        l("read: missing operand");
+        //        continue;
+        //    }
+        //    do {
+        //        token = it->str();
+        //        test.read(token);
+        //    } while (++it != end);
+        //}
+        //else if (token == "write") {
+        //    if (++it == end) {
+        //        l("write: missing operand");
+        //        continue;
+        //    }
+        //    token = it->str();
+        //    test.write(token);
+        //}
         else if (token == "format") {
             format(test);
         }
-        else if (token == "chmod") {
-            std::cout << "8\n";
-        }
+        //else if (token == "chmod") {
+        //    if (++it == end) {
+        //        l("chmod: missing mode");
+        //        continue;
+        //    }
+        //    token = it->str();
+        //    if (++it == end) {
+        //        l("chmod: missing file");
+        //        continue;
+        //    }
+        //    std::string file;
+        //    do {
+        //        file = it->str();
+        //        test.chmod(token, file);
+        //    } while (++it != end);
+        //}
         else if (token == "exit" || token == "quit") {
             std::cout << "OK, exit.\n";
             break;

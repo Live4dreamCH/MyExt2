@@ -7,6 +7,15 @@
 #include <regex>
 #include "files.h"
 
+struct Res
+{
+    bool succ = false;
+    u16 nodei = 0;
+    std::string name = "";
+    u16 parent = 0;
+    bool dir = false;
+};
+
 //文件系统的内存数据结构及操作
 //"动态的"文件系统
 class MyExt2
@@ -18,56 +27,55 @@ class MyExt2
     Group_Descriptor gdcache;//组描述符的内存缓存
     BitMap inode_map, block_map;//位图的内存缓存
     bool is_fmt;//是否已格式化
+    Dir* rootdir = nullptr, * parent = nullptr;
+    File* file = nullptr;
 
     //将一个path转换为inode号, 此path不能为空串
     //失败返回0, 一个错误的inode号
     //若成功, name值为文件名
-    u16 path2inode(std::string path, std::string& name) {
+    Res path2inode(std::string path, std::string& name) {
+        if (path[0] != '/')
+            path = current_path + path;
         std::regex split("/");
         std::sregex_token_iterator end;
         std::sregex_token_iterator it(path.begin(), path.end(), split, -1);
-        u16 index;
-        if (it->str() == "") {
-            index = 1;
-        }
-        else {
-            index = current_dir;
-        }
-        while (it!=end)
+        Dir pp = *rootdir;
+        Res re;
+        *parent = *rootdir;
+        bool is_dir = true;
+        std::pair<bool, DirEntry> n;
+        while (++it != end)
         {
             name = it->str();
-            index = this->name2inode(name, index);
-            if (index == 0) {
-                name = "";
-                return 0;
+            if (!is_dir) {
+                l("path: " + name + " is not a dir!");
+                return re;
+            }
+            parent->read();
+            n = parent->find(name);
+            if (!n.first) {
+                l("path: no file named " + name);
+                return re;
+            }
+            if (n.second.file_type != 2) {
+                is_dir = false;
+                file->open(name, n.second.inode, parent);
+            }
+            else {
+                pp = *parent;
+                parent->close();
+                parent->open(name, n.second.inode, &pp);
             }
         }
-        return index;
-    }
-
-    //在目录dir_index中,寻找名为name的文件, 并返回其inode号
-    //由于有可能一个目录项横跨两个磁盘块, 故使用2个缓冲区,达到"连续"的效果
-    //未找到返回0
-    u16 name2inode(std::string name, u16 dir_index) {
-        return 0;
-    }
-
-    //todo:在目录dir_inode下新建文件name
-    bool create_file_inode(char name[], u16 dir_inode) {
-        ;
-    }
-
-    //todo:将一个新建的空文件修改为目录文件, 并初始化. ..两项
-    void file2dir(u16 inode, u16 parent_inode) {
-        ;
-    }
-    void file2dir(Inode& inode, u16 parent) {
-        ;
-    }
-
-    //对目录, 列出其下的文件
-    //对文件, 列出其文件属性
-    void list(u16 index, std::string name) {
+        re.name = name;
+        re.nodei = n.second.inode;
+        if (is_dir)
+            re.parent = pp.get_nodei();
+        else
+            re.parent = parent->get_nodei();
+        re.dir = is_dir;
+        re.succ = true;
+        return re;
     }
 
 public:
@@ -80,6 +88,10 @@ public:
             disk.read(gdcache.inode_bitmap, inode_map.pointer());
             current_dir = 1;
             current_path = "/";
+            rootdir = new Dir(&disk, &inode_map, &block_map, &gdcache, nullptr, &fopen_table);
+            rootdir->open("/", 1, rootdir);
+            parent = new Dir(&disk, &inode_map, &block_map, &gdcache, rootdir, &fopen_table);
+            file = new Dir(&disk, &inode_map, &block_map, &gdcache, rootdir, &fopen_table);
         }
     }
 
@@ -140,31 +152,28 @@ public:
         disk.write(gdcache.block_bitmap, block_map.pointer());
         disk.write(gdcache.inode_bitmap, inode_map.pointer());
         is_fmt = true;
+        rootdir = new Dir(&disk, &inode_map, &block_map, &gdcache, nullptr, &fopen_table);
+        rootdir->open("/", 1, rootdir);
+        parent = new Dir(&disk, &inode_map, &block_map, &gdcache, rootdir, &fopen_table);
+        file = new Dir(&disk, &inode_map, &block_map, &gdcache, rootdir, &fopen_table);
     }
 
-    //在当前目录下新建文件name
-    bool create_file(char name[]) {
-        return this->create_file_inode(name, current_dir);
-    }
-
-    //在目录path下新建文件name
-    bool create_file(char name[], std::string path) {
-        std::string dir;
-        u16 inode = this->path2inode(path, dir);
-        if (inode == 0)
-            return false;
-        return this->create_file_inode(name, inode);
-    }
 
     void ls(std::string path) {
         std::string name;
-        u16 in = path2inode(path, name);
-        if (in == 0) {
+        Res in = path2inode(path, name);
+        if (!in.succ) {
             std::cout << "ls: cannot access \'" + path + "\': No such file or directory\n";
         }
         else {
             std::cout << path + ":\n";
-            this->list(in, name);
+            if (in.dir) {
+                parent->read();
+                parent->print();
+            }
+            else {
+                file->print();
+            }
         }
     }
 

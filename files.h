@@ -99,6 +99,10 @@ public:
     operator bool()const;
 
     bool print();
+
+    u16 get_nodei() {
+        return this->node_index;
+    }
 };
 
 //π‹¿ÌDirEntry

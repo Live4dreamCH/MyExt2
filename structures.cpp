@@ -295,17 +295,15 @@ struct Inode
 
     void print() {
         u16 type = (i_mode >> 8) & 0x00ff;
-        if (type == 2) {
-            //todo:1
-        }
-        else {
-            char rwx[4] = "---", d = '-', buff[26];
-            rwx[2] = (i_mode & (0x0001 << 0)) == 1 ? 'x' : '-';
-            rwx[1] = (i_mode & (0x0001 << 1)) == 1 ? 'w' : '-';
-            rwx[0] = (i_mode & (0x0001 << 2)) == 1 ? 'r' : '-';
-            ctime_s(buff, sizeof buff, (time_t*)&(i_mtime));
-            std::cout << d << rwx << ' ' << i_size << '\t' << buff;
-        }
+        char rwx[4] = "---", d = '-', buff[26];
+        if (type == 2)
+            d = 'd';
+        rwx[2] = (i_mode & (0x0001 << 0)) == 1 ? 'x' : '-';
+        rwx[1] = (i_mode & (0x0001 << 1)) == 1 ? 'w' : '-';
+        rwx[0] = (i_mode & (0x0001 << 2)) == 1 ? 'r' : '-';
+        ctime_s(buff, sizeof buff, (time_t*)&(i_mtime));
+        buff[24] = 0;
+        std::cout << d << rwx << ' ' << i_size << '\t' << buff;
     }
 };
 

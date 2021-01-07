@@ -227,7 +227,7 @@ bool File::create(std::string nm, Inode ino) {
 }
 
 bool File::open(std::string nm, u16 nodei, Dir* pa) {
-    if (this->node_index == 0 || this->node_index >= BlockSize * 8) {
+    if (nodei == 0 || nodei >= BlockSize * 8) {
         std::cerr << "bool open() out of range\n";
         return false;
     }
@@ -663,7 +663,6 @@ std::pair<bool, DirEntry> Dir::find(u16 nodei) {
 std::pair<bool, DirEntry> Dir::find(std::string nm) {
     if (!_find(nm))
         return { false, DirEntry() };
-    del_this();
     return { true,get_this() };
 }
 
