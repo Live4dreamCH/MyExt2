@@ -179,7 +179,14 @@ public:
 
     ~MyExt2()
     {
-        for (auto it = fopen_table.begin(); it != fopen_table.end(); it++) {
+        //auto it = fopen_table.begin();
+        //while (it != fopen_table.end())
+        //{
+        //    if (it != fopen_table.end())
+        //        it++;
+        //}
+        while (fopen_table.size() > 0) {
+            auto it = fopen_table.begin();
             if (!it->second->close())
                 l("close fail!may lose data!");
         }
