@@ -111,6 +111,7 @@ public:
         char zerob[BlockSize] = { 0 };
         for (int i = 0; i < FS_Size / BlockSize; i++)
         {
+            disk.seekp(0);
             disk.write(zerob, BlockSize);
         }
         std::cout << "Disk has been initialized with full 0!\n";
