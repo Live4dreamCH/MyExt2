@@ -32,8 +32,6 @@ class MyExt2
     File* file = nullptr;
 
     //将一个path转换为inode号, 此path不能为空串
-    //失败返回0, 一个错误的inode号
-    //若成功, name值为文件名
     Res path2inode(std::string path) {
         if (path[0] != '/')
             path = current_path + path;
@@ -42,15 +40,18 @@ class MyExt2
         std::sregex_token_iterator it(path.begin(), path.end(), split, -1);
         Dir pp = *rootdir;
         Res re;
-        *parent = *rootdir;
         bool is_dir = true;
         std::pair<bool, DirEntry> n;
         std::string name;
+        *parent = *rootdir;
+        if (!parent->open("/", 1, rootdir)) {
+            l("path: open fail!"); 
+            return re;
+        }
         if (++it == end) {
             name = "/";
             n.second.inode = 1;
         }
-        parent->open(name, 1, rootdir);
         while (it != end)
         {
             name = it->str();
@@ -66,12 +67,18 @@ class MyExt2
             }
             if (n.second.file_type != 2) {
                 is_dir = false;
-                file->open(name, n.second.inode, parent);
+                if (!file->open(name, n.second.inode, parent)) {
+                    l("path: open fail!");
+                    return re;
+                }
             }
             else {
                 pp = *parent;
                 parent->close();
-                parent->open(name, n.second.inode, &pp);
+                if (!parent->open(name, n.second.inode, &pp)) {
+                    l("path: open fail!");
+                    return re;
+                }
             }
             ++it;
         }
@@ -104,6 +111,7 @@ class MyExt2
             path = std::regex_replace(path, up, "/");
         } while (old != path);
         re.path = path;
+
         re.dir = is_dir;
         re.succ = true;
         return re;
