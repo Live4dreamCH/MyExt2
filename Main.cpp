@@ -136,16 +136,16 @@ int main(int argc, char* argv[])
                 test.mkdir(token);
             } while (++it != end);
         }
-        //else if (token == "create") {
-        //    if (++it == end) {
-        //        l("create: missing operand");
-        //        continue;
-        //    }
-        //    do {
-        //        token = it->str();
-        //        test.create(token);
-        //    } while (++it != end);
-        //}
+        else if (token == "create") {
+            if (++it == end) {
+                l("create: missing operand");
+                continue;
+            }
+            do {
+                token = it->str();
+                test.create(token);
+            } while (++it != end);
+        }
         //else if (token == "rm") {
         //    if (++it == end) {
         //        l("rm: missing operand");

@@ -251,9 +251,54 @@ public:
         }
         path.resize(path.size() - name.size());
         Res in = path2inode(path);
+        if (!in.succ) {
+            l("mkdir: dir path fail!");
+            return;
+        }
+        if (!in.dir) {
+            l("mkdir: cannot mkdir under a file!");
+            return;
+        }
         parent->read();
         Dir mk(&disk, &inode_map, &block_map, &gdcache, parent, &fopen_table);
         Inode ino(2);
+        mk.create(name, ino);
+        //mk.close();
+        parent->close();
+    }
+
+    void create(std::string path) {
+        if (path2inode(path).succ) {
+            l("create: " + path + " already exist!");
+            return;
+        }
+        if (path[0] != '/')
+            path = current_path + path;
+        std::regex split("/");
+        std::sregex_token_iterator end;
+        std::sregex_token_iterator it(path.begin(), path.end(), split, -1);
+        std::string name;
+        while (it != end) {
+            name = it->str();
+            it++;
+        }
+        if (path.back() == '/') {
+            path.pop_back();
+        }
+        path.resize(path.size() - name.size());
+        Res in = path2inode(path);
+        if (!in.succ) {
+            l("create: dir path fail!");
+            return;
+        }
+        if (!in.dir) {
+            l("create: cannot create under a file!");
+            return;
+        }
+
+        parent->read();
+        File mk(&disk, &inode_map, &block_map, &gdcache, parent, &fopen_table);
+        Inode ino(1);
         mk.create(name, ino);
         //mk.close();
         parent->close();
