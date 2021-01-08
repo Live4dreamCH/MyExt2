@@ -452,16 +452,18 @@ bool File::del() {
         l("nodei out of range");
         return false;
     }
-    if (this->has_open) {
-        delete this->buffer;
-        this->fopen_table->erase(this->node_index);
-        this->has_open = false;
+    if (!this->has_open) {
+        l("File::del need to rm blocks, please open first!");
+        return false;
     }
     while (this->inode.i_blocks > 0) {
         this->sub_block();
     }
+    delete this->buffer;
+    this->fopen_table->erase(this->node_index);
     this->inode_map->reset_bit(this->node_index);
     this->gd->free_inodes_count++;
+    this->has_open = false;
     this->parent->remove(this->node_index);
     return true;
 }
@@ -550,8 +552,8 @@ bool Dir::next() {
             this->end = this->offset;
             return false;
         }
+        this->offset = n - this->buffer;
         if (r.first) {
-            this->offset = n - this->buffer;
             return true;
         }
     }
@@ -591,16 +593,16 @@ bool Dir::del_this() {
     if (!this->ready())
         return false;
     int off = this->offset;
-    if (next())
-        offset = off;
-    else
+    if (!next())
         end = -1;
+    offset = off;
     u16* nodi = (u16*)(buffer + offset);
     if (*nodi == node_index || *nodi == parent->node_index) {
         l("cannot remove ./ or ../");
         return false;
     }
     *nodi = 0;
+    this->dirty = true;
     offset = 0;
     return true;
 }
@@ -615,7 +617,7 @@ bool Dir::_find(u16 nodei) {
             return true;
         }
     } while (next());
-    l("no such de to remove!");
+    l("no such de!");
     return false;
 }
 

@@ -146,16 +146,16 @@ int main(int argc, char* argv[])
                 test.create(token);
             } while (++it != end);
         }
-        //else if (token == "rm") {
-        //    if (++it == end) {
-        //        l("rm: missing operand");
-        //        continue;
-        //    }
-        //    do {
-        //        token = it->str();
-        //        test.rm(token);
-        //    } while (++it != end);
-        //}
+        else if (token == "rm") {
+            if (++it == end) {
+                l("rm: missing operand");
+                continue;
+            }
+            do {
+                token = it->str();
+                test.rm(token);
+            } while (++it != end);
+        }
         //else if (token == "read") {
         //    if (++it == end) {
         //        l("read: missing operand");

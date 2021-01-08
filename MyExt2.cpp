@@ -304,6 +304,51 @@ public:
         parent->close();
     }
 
+    void rm(std::string path) {
+        Res full = path2inode(path);
+        if (!full.succ) {
+            l("rm: " + path + " did not exist!");
+            return;
+        }
+        if (path[0] != '/')
+            path = current_path + path;
+        std::regex split("/");
+        std::sregex_token_iterator end;
+        std::sregex_token_iterator it(path.begin(), path.end(), split, -1);
+        std::string name;
+        while (it != end) {
+            name = it->str();
+            it++;
+        }
+        if (path.back() == '/') {
+            path.pop_back();
+        }
+        path.resize(path.size() - name.size());
+        Res in = path2inode(path);
+        if (!in.succ) {
+            l("rm: dir path fail!");
+            return;
+        }
+        if (!in.dir) {
+            l("rm: cannot rm under a file!");
+            return;
+        }
+
+        parent->read();
+        if (!full.dir) {
+            File ff(&disk, &inode_map, &block_map, &gdcache, parent, &fopen_table);
+            ff.open(full.name, full.nodei, parent);
+            ff.del();
+        }
+        else {
+            Dir dir(&disk, &inode_map, &block_map, &gdcache, parent, &fopen_table);
+            dir.open(full.name, full.nodei, parent);
+            dir.del();
+        }
+        //mk.close();
+        parent->close();
+    }
+
     ~MyExt2()
     {
         while (fopen_table.size() > 0) {
