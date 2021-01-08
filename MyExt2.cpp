@@ -349,6 +349,50 @@ public:
         parent->close();
     }
 
+    void read(std::string path) {
+        Res in = path2inode(path);
+        if (!in.succ) {
+            std::cout << "read: cannot access \'" + path + "\': No such file or directory\n";
+        }
+        else {
+            std::cout << path + ":\n";
+            if (in.dir) {
+                l("read: cannot read a dir! consider ls instead!");
+            }
+            else {
+                auto con = file->read();
+                std::string skr;
+                skr.assign(con.first, con.second);
+                std::cout << skr << '\n';
+                file->close();
+            }
+        }
+    }
+
+    void write(std::string path) {
+        Res in = path2inode(path);
+        if (!in.succ) {
+            std::cout << "write: cannot access \'" + path + "\': No such file or directory\n";
+        }
+        else {
+            std::cout << path + ":\n";
+            if (in.dir) {
+                l("write: cannot write a dir!!");
+            }
+            else {
+                auto con = file->read();
+                std::string skr;
+                std::getline(std::cin, skr);
+                char* midd = new char[skr.size() + 1];
+                strcpy_s(midd, skr.size() + 1, skr.c_str());
+                file->write(midd, skr.size() + 1);
+                delete[] midd;
+                file->close();
+            }
+        }
+    }
+
+
     ~MyExt2()
     {
         while (fopen_table.size() > 0) {

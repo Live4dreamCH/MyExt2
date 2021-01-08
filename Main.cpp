@@ -156,24 +156,24 @@ int main(int argc, char* argv[])
                 test.rm(token);
             } while (++it != end);
         }
-        //else if (token == "read") {
-        //    if (++it == end) {
-        //        l("read: missing operand");
-        //        continue;
-        //    }
-        //    do {
-        //        token = it->str();
-        //        test.read(token);
-        //    } while (++it != end);
-        //}
-        //else if (token == "write") {
-        //    if (++it == end) {
-        //        l("write: missing operand");
-        //        continue;
-        //    }
-        //    token = it->str();
-        //    test.write(token);
-        //}
+        else if (token == "read") {
+            if (++it == end) {
+                l("read: missing operand");
+                continue;
+            }
+            do {
+                token = it->str();
+                test.read(token);
+            } while (++it != end);
+        }
+        else if (token == "write") {
+            if (++it == end) {
+                l("write: missing operand");
+                continue;
+            }
+            token = it->str();
+            test.write(token);
+        }
         else if (token == "format") {
             format(test);
         }

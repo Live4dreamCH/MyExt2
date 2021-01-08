@@ -390,7 +390,9 @@ bool File::close() {
 
             if (buf_blocks > this->inode.i_blocks) {
                 int blk = 0, need = buf_blocks - this->inode.i_blocks;
-                u16 last_pos = this->get_block(this->inode.i_blocks - 1) + 1, query = need;
+                u16 last_pos = 0, query = need;
+                if (this->inode.i_blocks != 0)
+                    last_pos = this->get_block(this->inode.i_blocks - 1) + 1;
                 do {
                     blk = this->block_map->find_zeros(last_pos, query);
                     if (blk >= 0) {
