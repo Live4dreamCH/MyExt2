@@ -298,7 +298,13 @@ public:
 
         parent->read();
         File mk(&disk, &inode_map, &block_map, &gdcache, parent, &fopen_table);
-        Inode ino(1);
+        Inode ino(1, 6);
+        std::regex ext(".*(\\.exe|\\.bin|\\.com)");
+        if (name.find('.') == std::string::npos)
+            ino.set_access(7);
+        else if (std::regex_match(name, ext)) {
+            ino.set_access(7);
+        }
         mk.create(name, ino);
         //mk.close();
         parent->close();
@@ -392,6 +398,24 @@ public:
         }
     }
 
+    void chmod(char mode, std::string path) {
+        Res in = path2inode(path);
+        if (!in.succ) {
+            std::cout << "chmod: cannot access \'" + path + "\': No such file or directory\n";
+        }
+        else {
+            if (in.dir) {
+                l("chmod: change a dir's mode may influence all files under it!!");
+                parent->chmod(mode);
+                parent->close();
+            }
+            else {
+                file->chmod(mode);
+                file->close();
+            }
+        }
+
+    }
 
     ~MyExt2()
     {

@@ -100,6 +100,8 @@ public:
 
     bool print();
 
+    bool chmod(char mode);
+
     u16 get_nodei() {
         return this->node_index;
     }

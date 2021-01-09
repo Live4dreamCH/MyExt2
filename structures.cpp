@@ -312,7 +312,7 @@ struct Inode
         rwx[0] = (i_mode & (0x0001 << 2)) > 0 ? 'r' : '-';
         ctime_s(buff, sizeof buff, (time_t*)&(i_mtime));
         buff[24] = 0;
-        std::cout << d << rwx << ' ' << i_size << '\t' << buff;
+        std::cout << d << rwx << rwx << rwx << ' ' << i_size << '\t' << buff;
     }
 };
 

@@ -36,20 +36,20 @@ void test_features() {
     //a.copy(b, sizeof b);
     //std::cout << b;
 
-    std::string command, token;
-    std::regex whites("/");
-    std::sregex_token_iterator end;
-    while (true)
-    {
-        std::cout << "$ ";
-        std::getline(std::cin, command);
-        std::sregex_token_iterator it(command.begin(), command.end(), whites, -1);
-        while (it != end)
-        {
-            std::cout << it->str() << '\n';
-            it++;
-        }
-    }
+    //std::string command, token;
+    //std::regex whites("/");
+    //std::sregex_token_iterator end;
+    //while (true)
+    //{
+    //    std::cout << "$ ";
+    //    std::getline(std::cin, command);
+    //    std::sregex_token_iterator it(command.begin(), command.end(), whites, -1);
+    //    while (it != end)
+    //    {
+    //        std::cout << it->str() << '\n';
+    //        it++;
+    //    }
+    //}
 
     //std::string sn = "Hello!";
     //char cn[100] = "Hello!";
@@ -77,6 +77,22 @@ void test_features() {
     //    l(path);
     //    l("");
     //}
+
+    std::string name;
+    std::regex ext(".*(\\.exe|\\.bin|\\.com)");
+    while (true)
+    {
+        std::cout << "$ ";
+        std::getline(std::cin, name);
+        if (name.find('.') == std::string::npos)
+            l("true");
+        else if (std::regex_match(name, ext)) {
+            l("true");
+        }
+        else
+            l("flase");
+    }
+
 }
 
 int main(int argc, char* argv[])
@@ -177,22 +193,27 @@ int main(int argc, char* argv[])
         else if (token == "format") {
             format(test);
         }
-        //else if (token == "chmod") {
-        //    if (++it == end) {
-        //        l("chmod: missing mode");
-        //        continue;
-        //    }
-        //    token = it->str();
-        //    if (++it == end) {
-        //        l("chmod: missing file");
-        //        continue;
-        //    }
-        //    std::string file;
-        //    do {
-        //        file = it->str();
-        //        test.chmod(token, file);
-        //    } while (++it != end);
-        //}
+        else if (token == "chmod") {
+            if (++it == end) {
+                l("chmod: missing mode");
+                continue;
+            }
+            token = it->str();
+            if (++it == end) {
+                l("chmod: missing file");
+                continue;
+            }
+            char anum = token[0] - '0';
+            if (anum > 7) {
+                l("chmod: not a correct mode!");
+                continue;
+            }
+            std::string file;
+            do {
+                file = it->str();
+                test.chmod(anum, file);
+            } while (++it != end);
+        }
         else if (token == "exit" || token == "quit") {
             std::cout << "OK, exit.\n";
             break;

@@ -237,6 +237,8 @@ bool File::open(std::string nm, u16 nodei, Dir* pa) {
         return false;
     }
     has_open = true;
+    has_read = false;
+    dirty = false;
     this->node_index = nodei;
     this->name = nm;
     this->parent = pa;
@@ -245,6 +247,11 @@ bool File::open(std::string nm, u16 nodei, Dir* pa) {
 }
 
 std::pair<const char*, u32> File::read() {
+    char mode = this->inode.get_access();
+    if (((mode >> 2) & 0x01) == 0) {
+        l("File::read(): file doesn't have read permission!");
+        return { nullptr, 0 };
+    }
     if (has_open) {
         if (this->dirty) {
             return { (const char*)this->buffer, this->len };
@@ -274,6 +281,12 @@ std::pair<const char*, u32> File::read() {
 }
 
 bool File::write(char* str, u32 strlen) {
+    char mode = this->inode.get_access();
+    if (((mode >> 1) & 0x01) == 0) {
+        l("File::write(): file doesn't have write permission!");
+        return false;
+    }
+
     if (this->has_open) {
         if (!this->has_read) {
             l("write() not read yet");
@@ -300,6 +313,12 @@ bool File::write(char* str, u32 strlen) {
 }
 
 bool File::append(char* str, u32 applen) {
+    char mode = this->inode.get_access();
+    if (((mode >> 1) & 0x01) == 0) {
+        l("File::write(): file doesn't have write permission!");
+        return false;
+    }
+
     if (has_open) {
         if (!this->has_read) {
             l("append() not read yet");
@@ -336,6 +355,12 @@ bool File::append(char* str, u32 applen) {
 }
 
 bool File::change(char* str, u32 begin, u32 end) {
+    char mode = this->inode.get_access();
+    if (((mode >> 1) & 0x01) == 0) {
+        l("File::write(): file doesn't have write permission!");
+        return false;
+    }
+
     if (!this->has_read) {
         l("change() not read yet");
         return false;
@@ -481,6 +506,15 @@ bool File::print() {
     }
     this->inode.print();
     std::cout << '\n';
+    return true;
+}
+
+bool File::chmod(char mode) {
+    if (!this->has_open) {
+        std::cerr << "bool File::chmod() not open yet!\n";
+        return false;
+    }
+    this->inode.set_access(mode);
     return true;
 }
 
