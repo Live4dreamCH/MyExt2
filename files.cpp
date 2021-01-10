@@ -657,7 +657,7 @@ bool Dir::_find(u16 nodei) {
     return false;
 }
 
-bool Dir::_find(std::string nm) {
+bool Dir::_find(std::string nm, bool silent) {
     if (!this->ready())
         return false;
     head();
@@ -666,7 +666,8 @@ bool Dir::_find(std::string nm) {
         if (nm == temp.name)
             return true;
     } while (next());
-    l("no such de!");
+    if (!silent)
+        l("no such de!");
     return false;
 }
 
@@ -704,8 +705,8 @@ std::pair<bool, DirEntry> Dir::find(u16 nodei) {
     return { true,get_this() };
 }
 
-std::pair<bool, DirEntry> Dir::find(std::string nm) {
-    if (!_find(nm))
+std::pair<bool, DirEntry> Dir::find(std::string nm, bool silent) {
+    if (!_find(nm, silent))
         return { false, DirEntry() };
     return { true,get_this() };
 }

@@ -129,7 +129,7 @@ protected:
     bool set_this(DirEntry de);
     bool del_this();
     bool _find(u16 nodei);
-    bool _find(std::string nm);
+    bool _find(std::string nm, bool silent = false);
 public:
     Dir(DiskSim* dsk, BitMap* ino_map, BitMap* blk_map, Group_Descriptor* gdc, Dir* par, std::map<u16, File*>* fot);
     //更高级的api
@@ -137,7 +137,7 @@ public:
     bool remove(u16 nodei);
     bool remove(std::string nm);
     std::pair<bool, DirEntry> find(u16 nodei);
-    std::pair<bool, DirEntry> find(std::string nm);
+    std::pair<bool, DirEntry> find(std::string nm, bool silent = false);
     bool change_de(std::string nm, DirEntry de);
     bool change_de(u16 nodei, DirEntry de);
     bool print();

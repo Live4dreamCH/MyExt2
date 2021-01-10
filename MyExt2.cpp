@@ -32,7 +32,7 @@ class MyExt2
     File* file = nullptr;
 
     //将一个path转换为inode号, 此path不能为空串
-    Res path2inode(std::string path) {
+    Res path2inode(std::string path, bool silent = false) {
         if (path[0] != '/')
             path = current_path + path;
         std::regex split("/");
@@ -45,7 +45,7 @@ class MyExt2
         std::string name;
         *parent = *rootdir;
         if (!parent->open("/", 1, rootdir)) {
-            l("path: open fail!"); 
+            l("path: open fail!");
             return re;
         }
         if (++it == end) {
@@ -60,9 +60,10 @@ class MyExt2
                 return re;
             }
             parent->read();
-            n = parent->find(name);
+            n = parent->find(name, silent);
             if (!n.first) {
-                l("path: no file named " + name);
+                if (!silent)
+                    l("path: no file named " + name);
                 return re;
             }
             if (n.second.file_type != 2) {
@@ -232,7 +233,7 @@ public:
     }
 
     void mkdir(std::string path) {
-        if (path2inode(path).succ) {
+        if (path2inode(path, true).succ) {
             l("mkdir: " + path + " already exist!");
             return;
         }
@@ -268,7 +269,7 @@ public:
     }
 
     void create(std::string path) {
-        if (path2inode(path).succ) {
+        if (path2inode(path, true).succ) {
             l("create: " + path + " already exist!");
             return;
         }
