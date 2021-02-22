@@ -1,6 +1,7 @@
 #pragma once
 
-#include "pch.h"
+#include "constants.h"
+#include "log.h"
 #include "structures.cpp"
 #include <string>
 #include <utility>
@@ -25,53 +26,53 @@ protected:
     u32 len = 0, buflen = 0;
     bool has_open = false, dirty = false, has_read = false;
 
-    //¶ÁÈ¡indexºÅ¶ÔÓ¦µÄinodeË÷Òı½á¹¹
+    //è¯»å–indexå·å¯¹åº”çš„inodeç´¢å¼•ç»“æ„
     bool read_inode(u16 nodei);
 
-    //Ğ´Èë´Ëinode
+    //å†™å…¥æ­¤inode
     bool write_inode();
 
-    //¶ÔÄ³Inode½Úµãnode, ÔÚË÷ÒıºÅÎªnode.i_blocks´¦, Ìí¼ÓÒ»¸öÊı¾İ¿éË÷Òı, blockÊÇÊı¾İ¿éºÅ
-    //ÓÉÓÚ¹ı³ÌÖĞ¿ÉÄÜ»áÉêÇë¼ä½ÓË÷Òı¿é,´ÅÅÌÂúºó¿ÉÄÜÊ§°Ü,¹Ê·µ»ØÊÇ·ñ³É¹¦
-    //ÈôÍ¬Ê±ÉêÇëÒ»¶ş¼¶¼ä½ÓË÷Òı¿é,¶ş¼¶Ê§°Ü, »á½øĞĞ»ØÍË,±ÜÃâ1¼¶Ë÷Òı¿é±äÎª"ËÀ¿é"
+    //å¯¹æŸInodeèŠ‚ç‚¹node, åœ¨ç´¢å¼•å·ä¸ºnode.i_blockså¤„, æ·»åŠ ä¸€ä¸ªæ•°æ®å—ç´¢å¼•, blockæ˜¯æ•°æ®å—å·
+    //ç”±äºè¿‡ç¨‹ä¸­å¯èƒ½ä¼šç”³è¯·é—´æ¥ç´¢å¼•å—,ç£ç›˜æ»¡åå¯èƒ½å¤±è´¥,æ•…è¿”å›æ˜¯å¦æˆåŠŸ
+    //è‹¥åŒæ—¶ç”³è¯·ä¸€äºŒçº§é—´æ¥ç´¢å¼•å—,äºŒçº§å¤±è´¥, ä¼šè¿›è¡Œå›é€€,é¿å…1çº§ç´¢å¼•å—å˜ä¸º"æ­»å—"
     bool add_block(u16 block);
 
-    //¼õÈ¥Ò»¸öË÷ÒıºÅÎªnode.i_blocksµÄÊı¾İ¿éË÷Òı
+    //å‡å»ä¸€ä¸ªç´¢å¼•å·ä¸ºnode.i_blocksçš„æ•°æ®å—ç´¢å¼•
     bool sub_block();
 
-    //¶ÔÄ³Inode½Úµãnode, ÓÃË÷ÒıºÅindex, »ñÈ¡Ò»¸öÊı¾İ¿éºÅ
+    //å¯¹æŸInodeèŠ‚ç‚¹node, ç”¨ç´¢å¼•å·index, è·å–ä¸€ä¸ªæ•°æ®å—å·
     u16 get_block(u16 index);
 
 public:
-    //¹¹Ôìº¯Êı´ı¶¨
+    //æ„é€ å‡½æ•°å¾…å®š
     File(DiskSim* dsk, BitMap* ino_map, BitMap* blk_map, Group_Descriptor* gdc, Dir* par, std::map<u16, File*>* fot);
 
-    /*ĞÂ½¨ÎÄ¼şÊ±Òª×öÊ²Ã´:
-    MyExt2::inode_mapÕÒÒ»¸ö¿ÕµÄnodei²¢Õ¼ÓÃ
+    /*æ–°å»ºæ–‡ä»¶æ—¶è¦åšä»€ä¹ˆ:
+    MyExt2::inode_mapæ‰¾ä¸€ä¸ªç©ºçš„nodeiå¹¶å ç”¨
     MyExt2::gd.free_inodes_count--
-    (ÈôÊÇÄ¿Â¼ÎÄ¼ş, MyExt2::gd.used_dirs_count++, ²¢Éè. ..Á½Ïî)
-    ¹¹½¨Ò»¸öinode²¢Ğ´Èë´ÅÅÌ
-    ÔÚ¸¸Ä¿Â¼Ìí¼ÓÒ»¸öÄ¿Â¼Ïî
+    (è‹¥æ˜¯ç›®å½•æ–‡ä»¶, MyExt2::gd.used_dirs_count++, å¹¶è®¾. ..ä¸¤é¡¹)
+    æ„å»ºä¸€ä¸ªinodeå¹¶å†™å…¥ç£ç›˜
+    åœ¨çˆ¶ç›®å½•æ·»åŠ ä¸€ä¸ªç›®å½•é¡¹
     */
     bool create(std::string nm, Inode ino);
     /*
-    ´ò¿ªÎÄ¼şÒª×öÊ²Ã´:
-    ²åÈëMyExt2::fopen_table
-    ´Ó´ÅÅÌ»ñÈ¡inode
-    ĞŞ¸Ä·ÃÎÊÊ±¼ä
+    æ‰“å¼€æ–‡ä»¶è¦åšä»€ä¹ˆ:
+    æ’å…¥MyExt2::fopen_table
+    ä»ç£ç›˜è·å–inode
+    ä¿®æ”¹è®¿é—®æ—¶é—´
     */
     bool open(std::string nm, u16 nodei, Dir* pa);
 
     /*
-    ¶ÁÎÄ¼ş:
-    ½«ÎÄ¼ş·ÖÉ¢ÔÚ¸÷Êı¾İ¿éµÄÄÚÈİÁ¬½ÓÆğÀ´, ·ÅÔÚ»º³åÇøÀï
-    ·µ»ØÍ·Ö¸ÕëºÍ³¤¶È
+    è¯»æ–‡ä»¶:
+    å°†æ–‡ä»¶åˆ†æ•£åœ¨å„æ•°æ®å—çš„å†…å®¹è¿æ¥èµ·æ¥, æ”¾åœ¨ç¼“å†²åŒºé‡Œ
+    è¿”å›å¤´æŒ‡é’ˆå’Œé•¿åº¦
     */
     std::pair<const char*, u32> read();
     /*
-    Ğ´ÎÄ¼ş:
-    ÊäÈë×Ö·ûÖ¸ÕëºÍ³¤¶È
-    ½«×Ö·ûÁ÷Ğ´Èë»º³åÇø
+    å†™æ–‡ä»¶:
+    è¾“å…¥å­—ç¬¦æŒ‡é’ˆå’Œé•¿åº¦
+    å°†å­—ç¬¦æµå†™å…¥ç¼“å†²åŒº
     */
     bool write(char* str, u32 strlen);
 
@@ -80,19 +81,19 @@ public:
     bool change(char* str, u32 begin, u32 end);
 
     /*
-    ¹Ø±Õ:
-    ÎªĞ´Èë»º³åÇøÖÁÓ²ÅÌ, ÔÚMyExt2::block_map, gdÖĞÉêÇë/ÊÍ·ÅÊı¾İ¿é
-    ½«»º³åÇøĞ´Èë¸÷·ÖÉ¢Êı¾İ¿éÖĞ
-    ²¢¸Ä±äinode.size, i_blocks, ĞŞ¸ÄÊ±¼äµÈ
-    Ğ´Èëinode
-    É¾³ıMyExt2::fopen_table
+    å…³é—­:
+    ä¸ºå†™å…¥ç¼“å†²åŒºè‡³ç¡¬ç›˜, åœ¨MyExt2::block_map, gdä¸­ç”³è¯·/é‡Šæ”¾æ•°æ®å—
+    å°†ç¼“å†²åŒºå†™å…¥å„åˆ†æ•£æ•°æ®å—ä¸­
+    å¹¶æ”¹å˜inode.size, i_blocks, ä¿®æ”¹æ—¶é—´ç­‰
+    å†™å…¥inode
+    åˆ é™¤MyExt2::fopen_table
     */
     bool close();
     /*
-    É¾³ı:
-    ÊÍ·ÅMyExt2::inode_map, block_map, ĞŞ¸Ägd
-    ÖØÖÃ´Ëinode
-    ÔÚ¸¸Ä¿Â¼ÖĞÉ¾³ı´ËÄ¿Â¼Ïî
+    åˆ é™¤:
+    é‡Šæ”¾MyExt2::inode_map, block_map, ä¿®æ”¹gd
+    é‡ç½®æ­¤inode
+    åœ¨çˆ¶ç›®å½•ä¸­åˆ é™¤æ­¤ç›®å½•é¡¹
     */
     bool del();
 
@@ -107,32 +108,32 @@ public:
     }
 };
 
-//¹ÜÀíDirEntry
+//ç®¡ç†DirEntry
 class Dir :public File {
 protected:
-    //Ä¿Â¼ÏîÖ¸Õë
+    //ç›®å½•é¡¹æŒ‡é’ˆ
     int offset = 0, end = -1;
     DirEntry temp;
 public:
-    //¶Ô¼Ì³Ğ·½·¨µÄĞŞ¸Ä
+    //å¯¹ç»§æ‰¿æ–¹æ³•çš„ä¿®æ”¹
     bool create(std::string nm, Inode ino);
 
     bool del();
 protected:
-    //µÍ¼¶api
+    //ä½çº§api
     bool ready();
     bool head();
     bool next();
     bool alive();
     DirEntry get_this();
-    //changeºóÈç¹ûÔ­Î»²»ÄÜ´æ·Å,Ôò¿ÉÄÜÒÆ¶¯ÆäÎ»ÖÃ
+    //changeåå¦‚æœåŸä½ä¸èƒ½å­˜æ”¾,åˆ™å¯èƒ½ç§»åŠ¨å…¶ä½ç½®
     bool set_this(DirEntry de);
     bool del_this();
     bool _find(u16 nodei);
     bool _find(std::string nm, bool silent = false);
 public:
     Dir(DiskSim* dsk, BitMap* ino_map, BitMap* blk_map, Group_Descriptor* gdc, Dir* par, std::map<u16, File*>* fot);
-    //¸ü¸ß¼¶µÄapi
+    //æ›´é«˜çº§çš„api
     bool add(DirEntry de);
     bool remove(u16 nodei);
     bool remove(std::string nm);

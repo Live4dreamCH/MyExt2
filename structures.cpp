@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
 
-#include "pch.h"
-#include <iostream>
+#include "constants.h"
+#include "log.h"
 #include <ctime>
 #include <fstream>
 #include <utility>

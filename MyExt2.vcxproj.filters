@@ -27,15 +27,18 @@
     <ClCompile Include="files.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pch.cpp">
+    <ClCompile Include="log.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="pch.h">
+    <ClInclude Include="files.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="files.h">
+    <ClInclude Include="log.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="constants.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

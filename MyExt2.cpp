@@ -1,6 +1,7 @@
 #pragma once
 
-#include "pch.h"
+#include "constants.h"
+#include "log.h"
 #include "structures.cpp"
 #include <map>
 #include <string>
@@ -17,21 +18,21 @@ struct Res
     std::string path = "";
 };
 
-//ÎÄ¼şÏµÍ³µÄÄÚ´æÊı¾İ½á¹¹¼°²Ù×÷
-//"¶¯Ì¬µÄ"ÎÄ¼şÏµÍ³
+//æ–‡ä»¶ç³»ç»Ÿçš„å†…å­˜æ•°æ®ç»“æ„åŠæ“ä½œ
+//"åŠ¨æ€çš„"æ–‡ä»¶ç³»ç»Ÿ
 class MyExt2
 {
     DiskSim disk;
-    std::map<u16, File*> fopen_table;//ÎÄ¼ş´ò¿ª±í
-    u16 current_dir = 0;//µ±Ç°Ä¿Â¼(Ë÷Òı½áµã£©
-    std::string current_path = "";//µ±Ç°Â·¾¶(×Ö·û´®) 
-    Group_Descriptor gdcache;//×éÃèÊö·ûµÄÄÚ´æ»º´æ
-    BitMap inode_map, block_map;//Î»Í¼µÄÄÚ´æ»º´æ
-    bool is_fmt;//ÊÇ·ñÒÑ¸ñÊ½»¯
+    std::map<u16, File*> fopen_table;//æ–‡ä»¶æ‰“å¼€è¡¨
+    u16 current_dir = 0;//å½“å‰ç›®å½•(ç´¢å¼•ç»“ç‚¹ï¼‰
+    std::string current_path = "";//å½“å‰è·¯å¾„(å­—ç¬¦ä¸²) 
+    Group_Descriptor gdcache;//ç»„æè¿°ç¬¦çš„å†…å­˜ç¼“å­˜
+    BitMap inode_map, block_map;//ä½å›¾çš„å†…å­˜ç¼“å­˜
+    bool is_fmt;//æ˜¯å¦å·²æ ¼å¼åŒ–
     Dir* rootdir = nullptr, * parent = nullptr;
     File* file = nullptr;
 
-    //½«Ò»¸öpath×ª»»ÎªinodeºÅ, ´Ëpath²»ÄÜÎª¿Õ´®
+    //å°†ä¸€ä¸ªpathè½¬æ¢ä¸ºinodeå·, æ­¤pathä¸èƒ½ä¸ºç©ºä¸²
     Res path2inode(std::string path, bool silent = false) {
         if (path[0] != '/')
             path = current_path + path;
@@ -147,8 +148,8 @@ public:
         return is_fmt;
     }
 
-    //¸ñÊ½»¯
-    //Êı¾İÈ«²¿ÇåÁã, ÖØÖÃ¿ØÖÆ×Ö¶Î, ²¢³õÊ¼»¯¸ùÄ¿Â¼, ¼°ÆäËûÔÓÏî
+    //æ ¼å¼åŒ–
+    //æ•°æ®å…¨éƒ¨æ¸…é›¶, é‡ç½®æ§åˆ¶å­—æ®µ, å¹¶åˆå§‹åŒ–æ ¹ç›®å½•, åŠå…¶ä»–æ‚é¡¹
     void format(std::string vn) {
         disk.clear();
         fopen_table.clear();
@@ -163,7 +164,7 @@ public:
         block_map = db;
         inode_map = in;
 
-        //ĞÂ½¨¸ùÄ¿Â¼
+        //æ–°å»ºæ ¹ç›®å½•
         Inode root_inode(2, 7);
         root_inode.i_blocks = 1;
         root_inode.i_size = 17;
