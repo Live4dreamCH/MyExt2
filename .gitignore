@@ -3,7 +3,8 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
-FS.txt
+# human edit
+FS*.txt
 
 # User-specific files
 *.rsuser
