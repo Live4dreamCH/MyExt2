@@ -19,7 +19,10 @@ constexpr u16 DataBlockOffset = 1 + 1 + 1 + InodeSize * 8;
 
 /*todo:总
 已知缺陷:文件名中不能出现空格
-担心哪里没有改gd.free_x和gd.used_dirs_count, 以及inode和相应的两种map, 后期应检查
-补足注释
-写完,清空无用代码注释
+完善注释
+单元测试
+日志:增加l的级别参数, 在使用l的各处增加参数; 在Main, 根据命令行参数, 初始化使用的级别; 在l内进行大小判断
+使用Exception, 向上传递or处理问题
+分离出命令行参数解析
+除模板外, 声明与定义分离
 */

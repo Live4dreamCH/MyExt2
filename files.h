@@ -2,7 +2,7 @@
 
 #include "constants.h"
 #include "log.h"
-#include "structures.cpp"
+#include "structures.h"
 #include <string>
 #include <utility>
 #include <map>
