@@ -75,7 +75,7 @@ mod为0~7的数字, 代表rwx权限; 后接文件名.
 ## 文档
 
 [文档](./doc) 中包含结构图、实验要求、现场验收表、实验报告等  
-![结构图](./doc/structure.pdf)  
+![结构图](./doc/structure.png)  
 
 ## TODO
 
